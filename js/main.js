@@ -15,7 +15,7 @@ let playerWordGroups = [];
 function refresh(message) {
   renderAll(gameState, playerWordGroups, dict, message);
   // Re-attach drag listeners after every render (DOM is fully replaced)
-  if (gameState.phase === 'round' && gameState.turn === 'player') {
+  if (gameState.phase === 'round') {
     attachDragListeners();
   }
 }
@@ -161,7 +161,6 @@ function handleDrawDeck() {
     return;
   }
   drawFromDeck(gameState);
-  playerWordGroups = []; // reset word zone on new draw
   const isFinal = gameState.outBy !== null;
   refresh(isFinal
     ? 'Your final turn! Arrange words then Go Out or select a card and End Turn.'
@@ -175,7 +174,6 @@ function handleDrawDiscard() {
     return;
   }
   drawFromDiscard(gameState);
-  playerWordGroups = [];
   const isFinal = gameState.outBy !== null;
   refresh(isFinal
     ? 'Your final turn! Arrange words then Go Out or select a card and End Turn.'
@@ -251,9 +249,6 @@ function discardAndEndTurn(cardId) {
       return;
     }
 
-    const wordZoneCards = playerWordGroups.flat();
-    gameState.player.hand.push(...wordZoneCards);
-    playerWordGroups = [];
     discardCard(gameState, cardId);
     advanceTurn(gameState);
     refresh('Computer is thinking…');
