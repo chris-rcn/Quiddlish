@@ -234,6 +234,27 @@ function discardAndEndTurn(cardId) {
     checkGameEnd(gameState);
     refresh();
   } else {
+    // If the card being discarded is the only card left in hand and the word
+    // zone holds valid words, treat this discard as going out.
+    if (gameState.player.hand.length === 1 &&
+        gameState.player.hand[0].id === cardId &&
+        playerWordGroups.length > 0 &&
+        validateWordGroups(playerWordGroups, dict).valid) {
+      discardCard(gameState, cardId);      // hand is now empty
+      const result = goOut(gameState, playerWordGroups, dict);
+      playerWordGroups = [];
+      if (result.isFinalTurn) {
+        scoreRound(gameState);
+        gameState.phase = 'roundEnd';
+        checkGameEnd(gameState);
+        refresh();
+      } else {
+        refresh('You went out! Computer takes one final turn…');
+        setTimeout(runComputerFinalTurn, 400);
+      }
+      return;
+    }
+
     const wordZoneCards = playerWordGroups.flat();
     gameState.player.hand.push(...wordZoneCards);
     playerWordGroups = [];
