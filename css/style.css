@@ -1,0 +1,409 @@
+/* Quiddlish — stylesheet */
+
+/* ── Reset & base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #1a2332;
+  --surface:   #243045;
+  --surface2:  #2e3d55;
+  --border:    #3d5070;
+  --accent:    #4a90d9;
+  --accent2:   #e8a020;
+  --success:   #3cbb6e;
+  --danger:    #e05050;
+  --text:      #dde4f0;
+  --text-muted:#8899bb;
+  --card-bg:   #f5f0e8;
+  --card-text: #1a1a2e;
+  --card-back: #3d5070;
+  --shadow:    rgba(0,0,0,0.4);
+  --radius:    8px;
+  --card-w:    60px;
+  --card-h:    80px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+#app {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  padding: 0 12px 32px;
+}
+
+.hidden { display: none !important; }
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+#game-header {
+  display: flex;
+  align-items: center;
+  padding: 14px 0 10px;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.game-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--accent2);
+  flex: 1;
+}
+
+.round-display {
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ── Score bar ─────────────────────────────────────────────────────────────── */
+#score-bar {
+  display: flex;
+  gap: 24px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+}
+
+.score-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.score-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.score-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent2);
+}
+
+/* ── Board layout ──────────────────────────────────────────────────────────── */
+#board {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hand-section {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.hand-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ── Cards ─────────────────────────────────────────────────────────────────── */
+.hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: calc(var(--card-h) + 4px);
+}
+
+.card {
+  width: var(--card-w);
+  height: var(--card-h);
+  background: var(--card-bg);
+  color: var(--card-text);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 2px 3px 8px var(--shadow);
+  cursor: grab;
+  user-select: none;
+  position: relative;
+  transition: transform 0.1s, box-shadow 0.1s;
+  flex-shrink: 0;
+}
+
+.card:active { cursor: grabbing; }
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 3px 6px 14px var(--shadow);
+}
+
+.card.selected {
+  outline: 3px solid var(--accent2);
+  transform: translateY(-6px);
+}
+
+.card.dragging {
+  opacity: 0.5;
+  transform: rotate(3deg);
+}
+
+.card.drag-over {
+  outline: 2px dashed var(--accent);
+}
+
+.card-letters {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.card-points {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #888;
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+}
+
+/* Two-letter cards: smaller text */
+.card[data-card-id^="QU"],
+.card[data-card-id^="IN"],
+.card[data-card-id^="ER"],
+.card[data-card-id^="CL"],
+.card[data-card-id^="TH"] {
+  /* Handled by letter count at render time; selector fallback */
+}
+
+/* Back-face cards (computer hand, deck) */
+.card.face-down {
+  background: var(--card-back);
+  cursor: default;
+}
+.card.face-down:hover { transform: none; }
+
+/* Deck card */
+.deck-card {
+  position: relative;
+  cursor: pointer;
+}
+.deck-count {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  position: absolute;
+  bottom: 6px;
+}
+
+.card-empty {
+  border: 2px dashed var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: default;
+}
+
+/* ── Piles section ─────────────────────────────────────────────────────────── */
+#piles-section {
+  display: flex;
+  gap: 32px;
+  justify-content: center;
+  align-items: flex-start;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.pile-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.pile-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.pile {
+  min-height: var(--card-h);
+  display: flex;
+  align-items: center;
+}
+
+/* ── Word zone ─────────────────────────────────────────────────────────────── */
+#word-zone-section {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+#word-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.word-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 2px dashed var(--border);
+  min-height: calc(var(--card-h) + 16px);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.word-row.row-valid   { border-color: var(--success); background: rgba(60,187,110,0.07); }
+.word-row.row-invalid { border-color: var(--danger);  background: rgba(224,80,80,0.07); }
+.word-row.row-empty   { border-style: dashed; }
+.word-row.drag-over   { border-color: var(--accent); background: rgba(74,144,217,0.1); }
+
+.word-row-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.word-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+.badge-valid   { background: rgba(60,187,110,0.2); color: var(--success); }
+.badge-invalid { background: rgba(224,80,80,0.2);  color: var(--danger); }
+
+.remove-row {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+.remove-row:hover { color: var(--danger); }
+
+/* ── Computer revealed hand / words ───────────────────────────────────────── */
+.computer-hand {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.revealed-word {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--success);
+  background: rgba(60,187,110,0.06);
+  margin-bottom: 6px;
+}
+
+.revealed-word.unused-cards {
+  border-color: var(--danger);
+  background: rgba(224,80,80,0.06);
+}
+
+/* ── Action bar ────────────────────────────────────────────────────────────── */
+#action-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Status message ────────────────────────────────────────────────────────── */
+.status-message {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  padding: 6px 2px;
+  min-height: 1.4em;
+}
+
+/* ── Result panel ──────────────────────────────────────────────────────────── */
+.result-panel {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.result-panel h2 {
+  font-size: 1.3rem;
+  color: var(--accent2);
+}
+
+.result-panel p {
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.winner-text {
+  font-size: 1.4rem !important;
+  font-weight: 700;
+  color: var(--success) !important;
+  margin-top: 6px;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+.btn {
+  padding: 9px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  letter-spacing: 0.3px;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn:not(:disabled):hover { opacity: 0.9; transform: translateY(-1px); }
+.btn:not(:disabled):active { transform: translateY(0); }
+
+.btn-primary   { background: var(--accent);  color: #fff; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-success   { background: var(--success); color: #fff; }
+.btn-draw      { background: var(--surface2); color: var(--text); border: 1px solid var(--border); font-size: 0.8rem; padding: 6px 14px; }
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
