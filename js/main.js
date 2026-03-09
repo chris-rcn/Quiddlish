@@ -335,8 +335,8 @@ async function init() {
   renderMessage('Loading dictionary…');
   try {
     dict = await loadDictionary();
-    renderMessage('Ready! Click "New Game" to start.');
     document.getElementById('new-game-btn').disabled = false;
+    startNewGame(); // auto-deal on load
   } catch (err) {
     renderMessage('Failed to load dictionary. Serve the game with a local web server (e.g. python3 -m http.server).');
     console.error(err);
