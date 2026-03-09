@@ -200,10 +200,9 @@ function renderButtons(state) {
   nextRoundBtn.classList.toggle('hidden', state.phase !== 'roundEnd' || state.round >= 8);
   playAgainBtn.classList.toggle('hidden', state.phase !== 'gameEnd');
 
-  // Show/hide word-zone section
+  // Word-zone is always visible during a round
   const wordZoneSection = document.getElementById('word-zone-section');
-  const showWordZone = isPlayerTurn && discardPhase;
-  wordZoneSection.classList.toggle('hidden', !showWordZone);
+  wordZoneSection.classList.toggle('hidden', state.phase === 'start' || state.phase === 'gameEnd');
 }
 
 // ─── Status message ──────────────────────────────────────────────────────────
