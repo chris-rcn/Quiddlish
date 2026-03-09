@@ -284,9 +284,7 @@ function renderAll(state, wordGroups, dict, message) {
   } else {
     renderComputerHand(state);
     hideResultPanel();
-    const isPlayerDiscardPhase =
-      state.turn === 'player' && state.turnPhase === 'discard' && state.phase === 'round';
-    renderWordZone(wordGroups, dict, isPlayerDiscardPhase);
+    renderWordZone(wordGroups, dict, state.phase === 'round');
   }
 
   if (message !== undefined) renderMessage(message);
