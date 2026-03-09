@@ -366,3 +366,34 @@ async function init() {
 }
 
 init();
+
+// ─── Build timestamp ──────────────────────────────────────────────────────────
+// Issue HEAD requests for every source file and display the newest Last-Modified.
+
+(async function stampBuildTime() {
+  const sources = [
+    'index.html', 'css/style.css', 'data/words.txt',
+    'js/cards.js', 'js/dictionary.js', 'js/gameEngine.js',
+    'js/ai.js', 'js/ui.js', 'js/drag.js', 'js/main.js',
+  ];
+
+  let maxTime = 0;
+  await Promise.all(sources.map(async src => {
+    try {
+      const res = await fetch(src, { method: 'HEAD' });
+      const lm = res.headers.get('Last-Modified');
+      if (lm) maxTime = Math.max(maxTime, new Date(lm).getTime());
+    } catch { /* ignore individual failures */ }
+  }));
+
+  // Fall back to the HTML page's own modification time
+  if (!maxTime && document.lastModified) {
+    maxTime = new Date(document.lastModified).getTime();
+  }
+
+  if (maxTime) {
+    const stamp = new Date(maxTime).toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+    const el = document.getElementById('build-stamp');
+    if (el) el.textContent = stamp;
+  }
+})();
