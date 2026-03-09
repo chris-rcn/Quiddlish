@@ -45,6 +45,7 @@ function attachDragListeners() {
       while (playerWordGroups.length <= rowIndex) playerWordGroups.push([]);
       playerWordGroups[rowIndex].push(card);
       refresh();
+      if (gameState.player.hand.length === 0) tryAutoGoOut();
     },
 
     onWordToHand(cardId, rowIndex) {
@@ -73,6 +74,12 @@ function attachDragListeners() {
         playerWordGroups.splice(fromRow, 1);
       }
       refresh();
+    },
+
+    onDiscardCard(cardId) {
+      if (gameState.turn !== 'player' || gameState.turnPhase !== 'discard' || gameState.phase !== 'round') return;
+      if (!gameState.player.hand.find(c => c.id === cardId)) return;
+      discardAndEndTurn(cardId);
     },
   });
 }
@@ -216,12 +223,47 @@ function handleGoOut() {
   }
 }
 
-// ─── End Turn (discard a selected hand card) ──────────────────────────────────
+// ─── End Turn (discard a card) ────────────────────────────────────────────────
+
+function discardAndEndTurn(cardId) {
+  const isFinalTurn = gameState.outBy !== null;
+  if (isFinalTurn) {
+    discardCard(gameState, cardId);
+    endFinalTurn(gameState, playerWordGroups, dict);
+    playerWordGroups = [];
+    checkGameEnd(gameState);
+    refresh();
+  } else {
+    const wordZoneCards = playerWordGroups.flat();
+    gameState.player.hand.push(...wordZoneCards);
+    playerWordGroups = [];
+    discardCard(gameState, cardId);
+    advanceTurn(gameState);
+    refresh('Computer is thinking…');
+    setTimeout(runComputerTurn, 400);
+  }
+}
+
+function tryAutoGoOut() {
+  if (gameState.turn !== 'player' || gameState.turnPhase !== 'discard' || gameState.phase !== 'round') return;
+  if (playerWordGroups.length === 0 || playerWordGroups.every(g => g.length === 0)) return;
+  const result = goOut(gameState, playerWordGroups, dict);
+  if (!result.success) return; // words aren't valid — stay in normal play
+  playerWordGroups = [];
+  if (result.isFinalTurn) {
+    scoreRound(gameState);
+    gameState.phase = 'roundEnd';
+    checkGameEnd(gameState);
+    refresh();
+  } else {
+    refresh('You went out! Computer takes one final turn…');
+    setTimeout(runComputerFinalTurn, 400);
+  }
+}
 
 function handleEndTurn() {
   if (gameState.turn !== 'player' || gameState.turnPhase !== 'discard' || gameState.phase !== 'round') return;
 
-  // If all cards are in the word zone, remind player to Go Out instead
   if (gameState.player.hand.length === 0) {
     refresh('All cards are in the word zone — click "Go Out!" to declare your words, or drag some back to hand and discard one.');
     return;
@@ -233,27 +275,7 @@ function handleEndTurn() {
     return;
   }
 
-  const cardId = selectedEl.dataset.cardId;
-  const isFinalTurn = gameState.outBy !== null;
-
-  if (isFinalTurn) {
-    // Player's bonus final turn: commit word arrangement, discard one card, score
-    discardCard(gameState, cardId);
-    // playerWordGroups cards were already removed from hand via drag; commit them
-    endFinalTurn(gameState, playerWordGroups, dict);
-    playerWordGroups = [];
-    checkGameEnd(gameState);
-    refresh();
-  } else {
-    // Normal turn: return word zone cards to hand, discard, pass to computer
-    const wordZoneCards = playerWordGroups.flat();
-    gameState.player.hand.push(...wordZoneCards);
-    playerWordGroups = [];
-    discardCard(gameState, cardId);
-    advanceTurn(gameState);
-    refresh('Computer is thinking…');
-    setTimeout(runComputerTurn, 400);
-  }
+  discardAndEndTurn(selectedEl.dataset.cardId);
 }
 
 // ─── Computer turns ───────────────────────────────────────────────────────────

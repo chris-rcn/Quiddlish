@@ -113,6 +113,27 @@ function initDragAndDrop(opts) {
     });
   });
 
+  // ── discard pile drop zone (drag hand card to discard = end turn) ─────────
+  const discardPileEl = document.getElementById('discard-pile');
+  if (discardPileEl) {
+    discardPileEl.addEventListener('dragover', e => {
+      if (dragState && dragState.sourceType === 'hand') {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        discardPileEl.classList.add('drag-over');
+      }
+    });
+    discardPileEl.addEventListener('dragleave', () => discardPileEl.classList.remove('drag-over'));
+    discardPileEl.addEventListener('drop', e => {
+      e.preventDefault();
+      discardPileEl.classList.remove('drag-over');
+      if (dragState && dragState.sourceType === 'hand') {
+        opts.onDiscardCard(dragState.cardId);
+      }
+      dragState = null;
+    });
+  }
+
   // ── word-row drop zones (empty rows and row backgrounds) ─────────────────
   document.querySelectorAll('#word-zone .word-row').forEach(rowEl => {
     rowEl.addEventListener('dragover', e => {
@@ -176,6 +197,9 @@ function initTouchDragAndDrop(opts) {
     if (el.closest('#player-hand')) {
       return { type: 'hand' };
     }
+    if (el.closest('#discard-pile')) {
+      return { type: 'discard' };
+    }
     return null;
   }
 
@@ -230,7 +254,9 @@ function initTouchDragAndDrop(opts) {
       if (!target) return;
 
       if (sourceType === 'hand') {
-        if (target.type === 'word-card' || target.type === 'word-row') {
+        if (target.type === 'discard') {
+          touchOpts.onDiscardCard(cardId);
+        } else if (target.type === 'word-card' || target.type === 'word-row') {
           touchOpts.onCardToWord(cardId, target.rowIndex);
         } else if (target.type === 'hand-card' && target.cardId !== cardId) {
           touchOpts.onHandReorderById(cardId, target.cardId);

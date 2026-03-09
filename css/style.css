@@ -172,6 +172,11 @@ body {
   outline: 2px dashed var(--accent);
 }
 
+#discard-pile.drag-over .card {
+  outline: 3px dashed var(--accent2);
+  transform: translateY(-4px);
+}
+
 .card-letters {
   font-size: 1.5rem;
   font-weight: 800;
