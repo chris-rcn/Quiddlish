@@ -143,4 +143,105 @@ function initDragAndDrop(opts) {
       dragState = null;
     });
   });
+
+  // ── touch drag-and-drop (iOS Safari) ─────────────────────────────────────
+  initTouchDragAndDrop(opts);
+}
+
+// ─── Touch drag-and-drop ──────────────────────────────────────────────────────
+// iOS Safari doesn't support the HTML5 drag API, so we roll our own using
+// touchstart / touchmove / touchend + elementFromPoint for drop detection.
+
+let touchDrag = null; // { cardId, sourceType, wordRowIndex, clone, origX, origY, startX, startY, sourceEl }
+
+function initTouchDragAndDrop(opts) {
+  function getDropTarget(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    const wordCard = el.closest('#word-zone .card');
+    if (wordCard) {
+      const rowEl = wordCard.closest('.word-row');
+      return { type: 'word-card', cardId: wordCard.dataset.cardId, rowIndex: parseInt(rowEl.dataset.rowIndex, 10) };
+    }
+    const wordRow = el.closest('#word-zone .word-row');
+    if (wordRow) {
+      return { type: 'word-row', rowIndex: parseInt(wordRow.dataset.rowIndex, 10) };
+    }
+    const handCard = el.closest('#player-hand .card');
+    if (handCard) {
+      return { type: 'hand-card', cardId: handCard.dataset.cardId };
+    }
+    if (el.closest('#player-hand')) {
+      return { type: 'hand' };
+    }
+    return null;
+  }
+
+  function attachTouch(el, sourceType, getRowIndex) {
+    el.addEventListener('touchstart', e => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = el.getBoundingClientRect();
+      const clone = el.cloneNode(true);
+      clone.style.cssText = `
+        position: fixed;
+        left: ${rect.left}px; top: ${rect.top}px;
+        width: ${rect.width}px; height: ${rect.height}px;
+        opacity: 0.85; pointer-events: none; z-index: 9999;
+        transform: rotate(3deg) scale(1.07); transition: none;
+      `;
+      document.body.appendChild(clone);
+      touchDrag = {
+        cardId: el.dataset.cardId,
+        sourceType,
+        wordRowIndex: sourceType === 'word' ? getRowIndex() : undefined,
+        clone,
+        origX: rect.left, origY: rect.top,
+        startX: touch.clientX, startY: touch.clientY,
+        sourceEl: el,
+      };
+      el.classList.add('dragging');
+    }, { passive: false });
+  }
+
+  document.addEventListener('touchmove', e => {
+    if (!touchDrag) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    touchDrag.clone.style.left = (touchDrag.origX + touch.clientX - touchDrag.startX) + 'px';
+    touchDrag.clone.style.top  = (touchDrag.origY + touch.clientY - touchDrag.startY) + 'px';
+  }, { passive: false });
+
+  document.addEventListener('touchend', e => {
+    if (!touchDrag) return;
+    const touch = e.changedTouches[0];
+    touchDrag.clone.remove();
+    touchDrag.sourceEl.classList.remove('dragging');
+    const { cardId, sourceType, wordRowIndex } = touchDrag;
+    touchDrag = null;
+
+    const target = getDropTarget(touch.clientX, touch.clientY);
+    if (!target) return;
+
+    if (sourceType === 'hand') {
+      if (target.type === 'word-card' || target.type === 'word-row') {
+        opts.onCardToWord(cardId, target.rowIndex);
+      } else if (target.type === 'hand-card' && target.cardId !== cardId) {
+        opts.onHandReorderById(cardId, target.cardId);
+      }
+    } else if (sourceType === 'word') {
+      if ((target.type === 'word-card' || target.type === 'word-row') && target.rowIndex !== wordRowIndex) {
+        opts.onWordToWord(cardId, wordRowIndex, target.rowIndex);
+      } else if (target.type === 'hand-card' || target.type === 'hand') {
+        opts.onWordToHand(cardId, wordRowIndex);
+      }
+    }
+  });
+
+  document.querySelectorAll('#player-hand .card').forEach(el => {
+    attachTouch(el, 'hand', null);
+  });
+  document.querySelectorAll('#word-zone .card').forEach(el => {
+    attachTouch(el, 'word', () => parseInt(el.closest('.word-row').dataset.rowIndex, 10));
+  });
 }
