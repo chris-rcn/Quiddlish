@@ -279,8 +279,7 @@ function renderAll(state, wordGroups, dict, message) {
   if (state.phase === 'roundEnd' || state.phase === 'gameEnd') {
     renderComputerReveal(state);
     renderRoundResult(state);
-    // Clear word zone
-    renderWordZone([], dict, false);
+    renderWordZone(wordGroups, dict, false);
   } else {
     renderComputerHand(state);
     hideResultPanel();
