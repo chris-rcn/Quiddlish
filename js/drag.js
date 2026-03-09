@@ -153,6 +153,8 @@ function initDragAndDrop(opts) {
 // touchstart / touchmove / touchend + elementFromPoint for drop detection.
 
 let touchDrag = null; // { cardId, sourceType, wordRowIndex, clone, origX, origY, startX, startY, sourceEl }
+let touchOpts = null; // always points to the latest opts (updated each refresh)
+let touchDocListenersAttached = false;
 
 function initTouchDragAndDrop(opts) {
   function getDropTarget(x, y) {
@@ -204,39 +206,47 @@ function initTouchDragAndDrop(opts) {
     }, { passive: false });
   }
 
-  document.addEventListener('touchmove', e => {
-    if (!touchDrag) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    touchDrag.clone.style.left = (touchDrag.origX + touch.clientX - touchDrag.startX) + 'px';
-    touchDrag.clone.style.top  = (touchDrag.origY + touch.clientY - touchDrag.startY) + 'px';
-  }, { passive: false });
+  if (!touchDocListenersAttached) {
+    touchDocListenersAttached = true;
 
-  document.addEventListener('touchend', e => {
-    if (!touchDrag) return;
-    const touch = e.changedTouches[0];
-    touchDrag.clone.remove();
-    touchDrag.sourceEl.classList.remove('dragging');
-    const { cardId, sourceType, wordRowIndex } = touchDrag;
-    touchDrag = null;
+    document.addEventListener('touchmove', e => {
+      if (!touchDrag) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      touchDrag.clone.style.left = (touchDrag.origX + touch.clientX - touchDrag.startX) + 'px';
+      touchDrag.clone.style.top  = (touchDrag.origY + touch.clientY - touchDrag.startY) + 'px';
+    }, { passive: false });
 
-    const target = getDropTarget(touch.clientX, touch.clientY);
-    if (!target) return;
+    document.addEventListener('touchend', e => {
+      if (!touchDrag) return;
+      const touch = e.changedTouches[0];
+      touchDrag.clone.remove();
+      touchDrag.sourceEl.classList.remove('dragging');
+      const { cardId, sourceType, wordRowIndex } = touchDrag;
+      touchDrag = null;
 
-    if (sourceType === 'hand') {
-      if (target.type === 'word-card' || target.type === 'word-row') {
-        opts.onCardToWord(cardId, target.rowIndex);
-      } else if (target.type === 'hand-card' && target.cardId !== cardId) {
-        opts.onHandReorderById(cardId, target.cardId);
+      // Use the current opts from the module-level reference
+      const target = getDropTarget(touch.clientX, touch.clientY);
+      if (!target) return;
+
+      if (sourceType === 'hand') {
+        if (target.type === 'word-card' || target.type === 'word-row') {
+          touchOpts.onCardToWord(cardId, target.rowIndex);
+        } else if (target.type === 'hand-card' && target.cardId !== cardId) {
+          touchOpts.onHandReorderById(cardId, target.cardId);
+        }
+      } else if (sourceType === 'word') {
+        if ((target.type === 'word-card' || target.type === 'word-row') && target.rowIndex !== wordRowIndex) {
+          touchOpts.onWordToWord(cardId, wordRowIndex, target.rowIndex);
+        } else if (target.type === 'hand-card' || target.type === 'hand') {
+          touchOpts.onWordToHand(cardId, wordRowIndex);
+        }
       }
-    } else if (sourceType === 'word') {
-      if ((target.type === 'word-card' || target.type === 'word-row') && target.rowIndex !== wordRowIndex) {
-        opts.onWordToWord(cardId, wordRowIndex, target.rowIndex);
-      } else if (target.type === 'hand-card' || target.type === 'hand') {
-        opts.onWordToHand(cardId, wordRowIndex);
-      }
-    }
-  });
+    });
+  }
+
+  // Update the shared opts reference so the single touchend handler uses current callbacks
+  touchOpts = opts;
 
   document.querySelectorAll('#player-hand .card').forEach(el => {
     attachTouch(el, 'hand', null);

@@ -145,6 +145,7 @@ body {
   box-shadow: 2px 3px 8px var(--shadow);
   cursor: grab;
   user-select: none;
+  touch-action: none;
   position: relative;
   transition: transform 0.1s, box-shadow 0.1s;
   flex-shrink: 0;
