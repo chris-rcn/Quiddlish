@@ -413,3 +413,12 @@ body {
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--surface); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Build footer ──────────────────────────────────────────────────────────── */
+#build-footer {
+  text-align: center;
+  padding: 8px;
+  font-size: 0.7rem;
+  color: var(--text-muted, #888);
+  opacity: 0.6;
+}
