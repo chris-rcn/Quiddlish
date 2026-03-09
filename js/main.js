@@ -15,11 +15,7 @@ let playerWordGroups = [];
 function refresh(message) {
   renderAll(gameState, playerWordGroups, dict, message);
   // Re-attach drag listeners after every render (DOM is fully replaced)
-  if (
-    gameState.phase === 'round' &&
-    gameState.turn === 'player' &&
-    gameState.turnPhase === 'discard'
-  ) {
+  if (gameState.phase === 'round' && gameState.turn === 'player') {
     attachDragListeners();
   }
 }
