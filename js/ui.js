@@ -25,6 +25,7 @@ function makeCardEl(card, opts = {}) {
 function renderComputerHand(state) {
   const el = document.getElementById('computer-hand');
   el.innerHTML = '';
+  el.classList.add('facedown-spread');
   const n = state.computer.hand.length;
   for (let i = 0; i < n; i++) {
     el.appendChild(makeCardEl(state.computer.hand[i], { faceDown: true }));
@@ -37,6 +38,7 @@ function renderComputerHand(state) {
 function renderComputerReveal(state) {
   const el = document.getElementById('computer-hand');
   el.innerHTML = '';
+  el.classList.remove('facedown-spread');
   if (state.computer.words.length > 0) {
     for (const group of state.computer.words) {
       const wordEl = document.createElement('div');

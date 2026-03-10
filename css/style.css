@@ -326,6 +326,21 @@ body {
   gap: 6px;
 }
 
+.computer-hand.facedown-spread {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  overflow-x: visible;
+  gap: 0;
+}
+
+.computer-hand.facedown-spread .card {
+  margin-left: -28px;
+}
+
+.computer-hand.facedown-spread .card:first-child {
+  margin-left: 0;
+}
+
 .revealed-word {
   display: flex;
   flex-wrap: nowrap;
