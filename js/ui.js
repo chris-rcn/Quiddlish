@@ -119,7 +119,8 @@ function renderWordZone(wordGroups, dict, interactive) {
     const word = group.map(c => c.letters).join('').toLowerCase();
     const isValid = group.length >= 3 && dict && dict.has(word);
     const isEmpty = group.length === 0;
-    rowEl.classList.add(isEmpty ? 'row-empty' : isValid ? 'row-valid' : 'row-invalid');
+    const rowState = isEmpty ? 'row-empty' : isValid ? 'row-valid' : group.length < 3 ? 'row-building' : 'row-invalid';
+    rowEl.classList.add(rowState);
 
     // Cards in this row
     const cardsEl = document.createElement('div');
