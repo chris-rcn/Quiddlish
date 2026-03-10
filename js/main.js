@@ -59,7 +59,8 @@ function attachDragListeners() {
       const fromIdx = group.findIndex(c => c.id === cardId);
       const toIdx   = group.findIndex(c => c.id === targetCardId);
       if (fromIdx === -1 || toIdx === -1) return;
-      [group[fromIdx], group[toIdx]] = [group[toIdx], group[fromIdx]];
+      const [card] = group.splice(fromIdx, 1);
+      group.splice(toIdx > fromIdx ? toIdx - 1 : toIdx, 0, card);
       refresh();
     },
 
