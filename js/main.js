@@ -111,31 +111,6 @@ document.addEventListener('click', e => {
     return;
   }
 
-  // ── Go Out ────────────────────────────────────────────────────────────────
-  if (e.target.id === 'go-out-btn') {
-    handleGoOut();
-    return;
-  }
-
-  // ── End Turn ──────────────────────────────────────────────────────────────
-  if (e.target.id === 'end-turn-btn') {
-    handleEndTurn();
-    return;
-  }
-
-  // ── Card click in player hand → select for discard ────────────────────────
-  if (
-    gameState.turn === 'player' &&
-    gameState.turnPhase === 'discard' &&
-    gameState.phase === 'round'
-  ) {
-    const cardEl = e.target.closest('#player-hand .card');
-    if (cardEl) {
-      const alreadySelected = cardEl.classList.contains('selected');
-      document.querySelectorAll('#player-hand .card').forEach(c => c.classList.remove('selected'));
-      if (!alreadySelected) cardEl.classList.add('selected');
-    }
-  }
 });
 
 // ─── Draw handlers ────────────────────────────────────────────────────────────
@@ -149,8 +124,8 @@ function handleDrawDeck() {
   drawFromDeck(gameState);
   const isFinal = gameState.outBy !== null;
   refresh(isFinal
-    ? 'Your final turn! Arrange words then discard a card (or click Go Out! with one card in hand).'
-    : 'Drew from deck. Arrange words, then discard a card to end your turn (or Go Out! with one left).');
+    ? 'Your final turn! Arrange words then drag a card to discard.'
+    : 'Drew from deck. Arrange words, then drag a card to discard.');
 }
 
 function handleDrawDiscard() {
@@ -162,49 +137,8 @@ function handleDrawDiscard() {
   drawFromDiscard(gameState);
   const isFinal = gameState.outBy !== null;
   refresh(isFinal
-    ? 'Your final turn! Arrange words then discard a card (or click Go Out! with one card in hand).'
-    : 'Drew from discard. Arrange words, then discard a card to end your turn (or Go Out! with one left).');
-}
-
-// ─── Go Out ───────────────────────────────────────────────────────────────────
-
-function handleGoOut() {
-  if (gameState.turn !== 'player' || gameState.turnPhase !== 'discard' || gameState.phase !== 'round') return;
-
-  // Must have exactly 1 card in hand (the required discard) and valid words in the zone.
-  if (gameState.player.hand.length === 0) {
-    refresh('You must keep one card in hand to discard — drag a card back from the word zone.');
-    return;
-  }
-  if (gameState.player.hand.length > 1) {
-    refresh(`Move all but one card into the word zone — the remaining hand card will be discarded.`);
-    return;
-  }
-  if (playerWordGroups.length === 0 || playerWordGroups.every(g => g.length === 0)) {
-    refresh('Arrange your cards into words first.');
-    return;
-  }
-
-  // Discard the single remaining hand card, then declare go-out.
-  const discardId = gameState.player.hand[0].id;
-  discardCard(gameState, discardId);
-  const result = goOut(gameState, playerWordGroups, dict);
-  if (!result.success) {
-    refresh('Cannot go out: ' + result.errors.join(' '));
-    return;
-  }
-
-  playerWordGroups = [];
-
-  if (result.isFinalTurn) {
-    scoreRound(gameState);
-    gameState.phase = 'roundEnd';
-    checkGameEnd(gameState);
-    refresh();
-  } else {
-    refresh('You went out! Computer takes one final turn…');
-    setTimeout(runComputerFinalTurn, 400);
-  }
+    ? 'Your final turn! Arrange words then drag a card to discard.'
+    : 'Drew from discard. Arrange words, then drag a card to discard.');
 }
 
 // ─── End Turn (discard a card) ────────────────────────────────────────────────
@@ -244,23 +178,6 @@ function discardAndEndTurn(cardId) {
     refresh('Computer is thinking…');
     setTimeout(runComputerTurn, 400);
   }
-}
-
-function handleEndTurn() {
-  if (gameState.turn !== 'player' || gameState.turnPhase !== 'discard' || gameState.phase !== 'round') return;
-
-  if (gameState.player.hand.length === 0) {
-    refresh('All cards are in the word zone — drag one back to hand to discard, or click Go Out! if your words are ready.');
-    return;
-  }
-
-  const selectedEl = document.querySelector('#player-hand .card.selected');
-  if (!selectedEl) {
-    refresh('Click a card in your hand to select it for discard, then click End Turn.');
-    return;
-  }
-
-  discardAndEndTurn(selectedEl.dataset.cardId);
 }
 
 // ─── Computer turns ───────────────────────────────────────────────────────────

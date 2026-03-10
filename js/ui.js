@@ -172,20 +172,11 @@ function renderScores(state) {
 function renderButtons(state) {
   const isPlayerTurn = state.turn === 'player' && state.phase === 'round';
   const drawPhase = state.turnPhase === 'draw';
-  const discardPhase = state.turnPhase === 'discard';
 
   // Draw buttons: visible on player's draw phase
   document.getElementById('draw-deck-btn').disabled = !(isPlayerTurn && drawPhase);
   document.getElementById('draw-discard-btn').disabled =
     !(isPlayerTurn && drawPhase && state.discard.length > 0);
-
-  // End Turn button: visible on player's discard phase
-  const endTurnBtn = document.getElementById('end-turn-btn');
-  endTurnBtn.disabled = !(isPlayerTurn && discardPhase);
-
-  // Go Out button: visible on player's discard phase
-  const goOutBtn = document.getElementById('go-out-btn');
-  goOutBtn.disabled = !(isPlayerTurn && discardPhase);
 
   // Next round / play again
   const nextRoundBtn = document.getElementById('next-round-btn');
@@ -269,9 +260,10 @@ function renderAll(state, wordGroups, dict, message) {
   renderPlayerHand(state);
   renderButtons(state);
 
-  // After player commits their words (outBy === 'player'), show them read-only.
-  // playerWordGroups is empty at that point, but state.player.words holds the committed groups.
-  const displayGroups = state.outBy === 'player' ? state.player.words : wordGroups;
+  // After player commits their words, show them read-only.
+  const displayGroups = (state.phase === 'roundEnd' || state.phase === 'gameEnd' || state.outBy === 'player')
+    ? state.player.words
+    : wordGroups;
   const interactive = state.phase === 'round' && state.outBy !== 'player';
 
   if (state.phase === 'roundEnd' || state.phase === 'gameEnd') {
