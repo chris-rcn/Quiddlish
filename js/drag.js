@@ -106,8 +106,12 @@ function initDragAndDrop(opts) {
       if (!dragState) return;
       if (dragState.sourceType === 'hand') {
         opts.onCardToWord(dragState.cardId, targetRow);
-      } else if (dragState.sourceType === 'word' && dragState.wordRowIndex !== targetRow) {
-        opts.onWordToWord(dragState.cardId, dragState.wordRowIndex, targetRow);
+      } else if (dragState.sourceType === 'word') {
+        if (dragState.wordRowIndex !== targetRow) {
+          opts.onWordToWord(dragState.cardId, dragState.wordRowIndex, targetRow);
+        } else if (dragState.cardId !== el.dataset.cardId) {
+          opts.onWordReorderById(dragState.cardId, targetRow, el.dataset.cardId);
+        }
       }
       dragState = null;
     });
@@ -161,6 +165,7 @@ function initDragAndDrop(opts) {
       } else if (dragState.sourceType === 'word' && dragState.wordRowIndex !== targetRow) {
         opts.onWordToWord(dragState.cardId, dragState.wordRowIndex, targetRow);
       }
+      // same-row background drop: no-op (position unchanged)
       dragState = null;
     });
   });
@@ -264,6 +269,8 @@ function initTouchDragAndDrop(opts) {
       } else if (sourceType === 'word') {
         if (target.type === 'discard') {
           touchOpts.onDiscardCard(cardId);
+        } else if (target.type === 'word-card' && target.rowIndex === wordRowIndex && target.cardId !== cardId) {
+          touchOpts.onWordReorderById(cardId, wordRowIndex, target.cardId);
         } else if ((target.type === 'word-card' || target.type === 'word-row') && target.rowIndex !== wordRowIndex) {
           touchOpts.onWordToWord(cardId, wordRowIndex, target.rowIndex);
         } else if (target.type === 'hand-card' || target.type === 'hand') {

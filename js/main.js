@@ -53,6 +53,16 @@ function attachDragListeners() {
       refresh();
     },
 
+    onWordReorderById(cardId, rowIndex, targetCardId) {
+      const group = playerWordGroups[rowIndex];
+      if (!group) return;
+      const fromIdx = group.findIndex(c => c.id === cardId);
+      const toIdx   = group.findIndex(c => c.id === targetCardId);
+      if (fromIdx === -1 || toIdx === -1) return;
+      [group[fromIdx], group[toIdx]] = [group[toIdx], group[fromIdx]];
+      refresh();
+    },
+
     onWordToWord(cardId, fromRow, toRow) {
       if (fromRow >= playerWordGroups.length) return;
       const srcGroup = playerWordGroups[fromRow];
