@@ -178,10 +178,11 @@ body {
 }
 
 .card-letters {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   font-weight: 800;
   line-height: 1;
   letter-spacing: -1px;
+  margin-bottom: 4px;
 }
 
 .card-points {
@@ -190,7 +191,9 @@ body {
   color: #888;
   position: absolute;
   bottom: 4px;
-  right: 6px;
+  left: 0;
+  right: 0;
+  text-align: center;
 }
 
 /* Two-letter cards: smaller text */
