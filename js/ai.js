@@ -137,18 +137,23 @@ function aiTakeTurn(state, dict) {
 
   const newHand = state.computer.hand;
 
-  // 2. Find best partition of new hand
-  const full = findBestWordPartition(newHand, dict, 300);
-
-  // 3. Can go out?
-  if (full) {
-    const result = goOut(state, full, dict);
-    if (result.success) {
-      return { drewFrom, discarded: null, wentOut: true, words: full };
+  // 2. Can go out? Must discard exactly 1 card — try each card as the discard,
+  //    check whether the remaining n-1 cards form a complete valid word partition.
+  //    Prefer discarding the lowest-value card to maximise score.
+  const byValueAsc = [...newHand].sort((a, b) => a.points - b.points);
+  for (const discardCandidate of byValueAsc) {
+    const remaining = newHand.filter(c => c.id !== discardCandidate.id);
+    const full = findBestWordPartition(remaining, dict, 300);
+    if (full) {
+      discardCard(state, discardCandidate.id);
+      const result = goOut(state, full, dict);
+      if (result.success) {
+        return { drewFrom, discarded: discardCandidate, wentOut: true, words: full };
+      }
     }
   }
 
-  // 4. Find partial partition and choose what to discard
+  // 3. Cannot go out — find partial partition and choose best discard
   const partial = findPartialPartition(newHand, dict, 200);
   const cardToDiscard = chooseBestDiscard(newHand, partial.words);
   discardCard(state, cardToDiscard.id);

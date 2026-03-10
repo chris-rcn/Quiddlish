@@ -14,8 +14,8 @@ let playerWordGroups = [];
 
 function refresh(message) {
   renderAll(gameState, playerWordGroups, dict, message);
-  // Re-attach drag listeners after every render (DOM is fully replaced)
-  if (gameState.phase === 'round') {
+  // Re-attach drag listeners; skip if player already committed their words
+  if (gameState.phase === 'round' && gameState.outBy !== 'player') {
     attachDragListeners();
   }
 }
@@ -41,7 +41,6 @@ function attachDragListeners() {
       while (playerWordGroups.length <= rowIndex) playerWordGroups.push([]);
       playerWordGroups[rowIndex].push(card);
       refresh();
-      if (gameState.player.hand.length === 0) tryAutoGoOut();
     },
 
     onWordToHand(cardId, rowIndex) {
@@ -163,8 +162,8 @@ function handleDrawDeck() {
   drawFromDeck(gameState);
   const isFinal = gameState.outBy !== null;
   refresh(isFinal
-    ? 'Your final turn! Arrange words then Go Out or select a card and End Turn.'
-    : 'Drew from deck. Arrange words then Go Out, or select a card and End Turn.');
+    ? 'Your final turn! Arrange words then discard a card (or click Go Out! with one card in hand).'
+    : 'Drew from deck. Arrange words, then discard a card to end your turn (or Go Out! with one left).');
 }
 
 function handleDrawDiscard() {
@@ -176,8 +175,8 @@ function handleDrawDiscard() {
   drawFromDiscard(gameState);
   const isFinal = gameState.outBy !== null;
   refresh(isFinal
-    ? 'Your final turn! Arrange words then Go Out or select a card and End Turn.'
-    : 'Drew from discard. Arrange words then Go Out, or select a card and End Turn.');
+    ? 'Your final turn! Arrange words then discard a card (or click Go Out! with one card in hand).'
+    : 'Drew from discard. Arrange words, then discard a card to end your turn (or Go Out! with one left).');
 }
 
 // ─── Go Out ───────────────────────────────────────────────────────────────────
@@ -185,10 +184,13 @@ function handleDrawDiscard() {
 function handleGoOut() {
   if (gameState.turn !== 'player' || gameState.turnPhase !== 'discard' || gameState.phase !== 'round') return;
 
-  // Verify ALL hand cards have been placed into the word zone
-  const unplaced = gameState.player.hand.length; // hand is empty when all dragged out
-  if (unplaced > 0) {
-    refresh(`Place all ${unplaced} remaining hand card(s) into words before going out.`);
+  // Must have exactly 1 card in hand (the required discard) and valid words in the zone.
+  if (gameState.player.hand.length === 0) {
+    refresh('You must keep one card in hand to discard — drag a card back from the word zone.');
+    return;
+  }
+  if (gameState.player.hand.length > 1) {
+    refresh(`Move all but one card into the word zone — the remaining hand card will be discarded.`);
     return;
   }
   if (playerWordGroups.length === 0 || playerWordGroups.every(g => g.length === 0)) {
@@ -196,6 +198,9 @@ function handleGoOut() {
     return;
   }
 
+  // Discard the single remaining hand card, then declare go-out.
+  const discardId = gameState.player.hand[0].id;
+  discardCard(gameState, discardId);
   const result = goOut(gameState, playerWordGroups, dict);
   if (!result.success) {
     refresh('Cannot go out: ' + result.errors.join(' '));
@@ -205,13 +210,11 @@ function handleGoOut() {
   playerWordGroups = [];
 
   if (result.isFinalTurn) {
-    // Player went out on their final turn (computer went out first) → score now
     scoreRound(gameState);
     gameState.phase = 'roundEnd';
     checkGameEnd(gameState);
     refresh();
   } else {
-    // Player went out first → computer gets one final turn
     refresh('You went out! Computer takes one final turn…');
     setTimeout(runComputerFinalTurn, 400);
   }
@@ -256,28 +259,11 @@ function discardAndEndTurn(cardId) {
   }
 }
 
-function tryAutoGoOut() {
-  if (gameState.turn !== 'player' || gameState.turnPhase !== 'discard' || gameState.phase !== 'round') return;
-  if (playerWordGroups.length === 0 || playerWordGroups.every(g => g.length === 0)) return;
-  const result = goOut(gameState, playerWordGroups, dict);
-  if (!result.success) return; // words aren't valid — stay in normal play
-  playerWordGroups = [];
-  if (result.isFinalTurn) {
-    scoreRound(gameState);
-    gameState.phase = 'roundEnd';
-    checkGameEnd(gameState);
-    refresh();
-  } else {
-    refresh('You went out! Computer takes one final turn…');
-    setTimeout(runComputerFinalTurn, 400);
-  }
-}
-
 function handleEndTurn() {
   if (gameState.turn !== 'player' || gameState.turnPhase !== 'discard' || gameState.phase !== 'round') return;
 
   if (gameState.player.hand.length === 0) {
-    refresh('All cards are in the word zone — click "Go Out!" to declare your words, or drag some back to hand and discard one.');
+    refresh('All cards are in the word zone — drag one back to hand to discard, or click Go Out! if your words are ready.');
     return;
   }
 

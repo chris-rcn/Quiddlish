@@ -276,14 +276,19 @@ function renderAll(state, wordGroups, dict, message) {
   renderPlayerHand(state);
   renderButtons(state);
 
+  // After player commits their words (outBy === 'player'), show them read-only.
+  // playerWordGroups is empty at that point, but state.player.words holds the committed groups.
+  const displayGroups = state.outBy === 'player' ? state.player.words : wordGroups;
+  const interactive = state.phase === 'round' && state.outBy !== 'player';
+
   if (state.phase === 'roundEnd' || state.phase === 'gameEnd') {
     renderComputerReveal(state);
     renderRoundResult(state);
-    renderWordZone(wordGroups, dict, false);
+    renderWordZone(displayGroups, dict, false);
   } else {
     renderComputerHand(state);
     hideResultPanel();
-    renderWordZone(wordGroups, dict, state.phase === 'round');
+    renderWordZone(displayGroups, dict, interactive);
   }
 
   if (message !== undefined) renderMessage(message);
