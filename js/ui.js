@@ -135,7 +135,7 @@ function renderWordZone(wordGroups, dict, interactive) {
       badge.className = 'word-badge';
       if (isValid) {
         const pts = group.reduce((s, c) => s + c.points, 0);
-        badge.textContent = `✓ ${word.toUpperCase()} (${pts} pts)`;
+        badge.textContent = `+${pts}`;
         badge.classList.add('badge-valid');
       } else if (group.length < 3) {
         badge.textContent = 'Need 3+ cards';
