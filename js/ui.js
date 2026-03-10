@@ -63,7 +63,15 @@ function renderComputerReveal(state) {
       el.appendChild(unusedEl);
     }
   } else {
-    for (const c of state.computer.hand) el.appendChild(makeCardEl(c, { faceDown: false }));
+    const unusedEl = document.createElement('div');
+    unusedEl.className = 'revealed-word unused-cards';
+    for (const c of state.computer.hand) unusedEl.appendChild(makeCardEl(c, { faceDown: false }));
+    const pts = state.computer.hand.reduce((s, c) => s + c.points, 0);
+    const ptsEl = document.createElement('span');
+    ptsEl.className = 'word-points';
+    ptsEl.textContent = `-${pts}`;
+    unusedEl.appendChild(ptsEl);
+    el.appendChild(unusedEl);
   }
 }
 
