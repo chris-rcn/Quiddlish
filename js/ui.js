@@ -42,12 +42,22 @@ function renderComputerReveal(state) {
       const wordEl = document.createElement('div');
       wordEl.className = 'revealed-word';
       for (const c of group) wordEl.appendChild(makeCardEl(c));
+      const pts = group.reduce((s, c) => s + c.points, 0);
+      const ptsEl = document.createElement('span');
+      ptsEl.className = 'word-points';
+      ptsEl.textContent = `+${pts}`;
+      wordEl.appendChild(ptsEl);
       el.appendChild(wordEl);
     }
     if (state.computer.hand.length > 0) {
       const unusedEl = document.createElement('div');
       unusedEl.className = 'revealed-word unused-cards';
       for (const c of state.computer.hand) unusedEl.appendChild(makeCardEl(c));
+      const pts = state.computer.hand.reduce((s, c) => s + c.points, 0);
+      const ptsEl = document.createElement('span');
+      ptsEl.className = 'word-points';
+      ptsEl.textContent = `-${pts}`;
+      unusedEl.appendChild(ptsEl);
       el.appendChild(unusedEl);
     }
   } else {

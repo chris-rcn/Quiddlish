@@ -320,24 +320,41 @@ body {
 
 /* ── Computer revealed hand / words ───────────────────────────────────────── */
 .computer-hand {
+  flex-direction: column;
   flex-wrap: nowrap;
-  overflow-x: auto;
+  overflow-x: hidden;
+  gap: 6px;
 }
 
 .revealed-word {
   display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
   padding: 6px;
   border-radius: 6px;
   border: 1px solid var(--success);
   background: rgba(60,187,110,0.06);
-  margin-bottom: 6px;
+  overflow-x: auto;
+  min-width: 0;
 }
 
 .revealed-word.unused-cards {
   border-color: var(--danger);
   background: rgba(224,80,80,0.06);
+}
+
+.word-points {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--success);
+  white-space: nowrap;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.revealed-word.unused-cards .word-points {
+  color: var(--danger);
 }
 
 /* ── Action bar ────────────────────────────────────────────────────────────── */
