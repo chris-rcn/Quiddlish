@@ -50,10 +50,6 @@ function attachDragListeners() {
       if (cardIdx === -1) return;
       const [card] = group.splice(cardIdx, 1);
       gameState.player.hand.push(card);
-      // Remove now-empty row (unless it's the last one)
-      if (group.length === 0 && playerWordGroups.length > 1) {
-        playerWordGroups.splice(rowIndex, 1);
-      }
       refresh();
     },
 
@@ -65,9 +61,6 @@ function attachDragListeners() {
       const [card] = srcGroup.splice(cardIdx, 1);
       while (playerWordGroups.length <= toRow) playerWordGroups.push([]);
       playerWordGroups[toRow].push(card);
-      if (srcGroup.length === 0 && playerWordGroups.length > 1) {
-        playerWordGroups.splice(fromRow, 1);
-      }
       refresh();
     },
 
@@ -105,22 +98,6 @@ document.addEventListener('click', e => {
   // ── Draw from discard (button or clicking discard pile) ───────────────────
   if (e.target.id === 'draw-discard-btn' || e.target.closest('#discard-pile')) {
     handleDrawDiscard();
-    return;
-  }
-
-  // ── Add word row ──────────────────────────────────────────────────────────
-  if (e.target.id === 'add-word-btn') {
-    playerWordGroups.push([]);
-    refresh();
-    return;
-  }
-
-  // ── Remove word row ───────────────────────────────────────────────────────
-  if (e.target.classList.contains('remove-row')) {
-    const rowIndex = parseInt(e.target.dataset.rowIndex, 10);
-    const removed = playerWordGroups.splice(rowIndex, 1)[0] || [];
-    gameState.player.hand.push(...removed);
-    refresh();
     return;
   }
 
@@ -336,7 +313,8 @@ function startNewGame() {
 function startNextRound() {
   const freshDeck = createDeck();
   dealRound(gameState, freshDeck);
-  playerWordGroups = [];
+  const slotCount = Math.floor(cardsForRound(gameState.round) / 3);
+  playerWordGroups = Array.from({ length: Math.max(1, slotCount) }, () => []);
 
   const firstMsg = gameState.turn === 'player'
     ? 'You go first — draw a card.'

@@ -144,27 +144,8 @@ function renderWordZone(wordGroups, dict, interactive) {
       rowEl.appendChild(badge);
     }
 
-    // Remove-row button (only when interactive and row is empty)
-    if (interactive && isEmpty && rowIndex > 0) {
-      const rmBtn = document.createElement('button');
-      rmBtn.className = 'btn-icon remove-row';
-      rmBtn.title = 'Remove row';
-      rmBtn.textContent = '×';
-      rmBtn.dataset.rowIndex = rowIndex;
-      rowEl.appendChild(rmBtn);
-    }
-
     zone.appendChild(rowEl);
   });
-
-  // "Add Word" button
-  if (interactive) {
-    const addBtn = document.createElement('button');
-    addBtn.id = 'add-word-btn';
-    addBtn.className = 'btn btn-secondary';
-    addBtn.textContent = '+ Add Word';
-    zone.appendChild(addBtn);
-  }
 }
 
 // ─── Player hand ─────────────────────────────────────────────────────────────
