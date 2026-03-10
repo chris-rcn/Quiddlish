@@ -271,16 +271,11 @@ body {
 }
 
 /* ── Word zone ─────────────────────────────────────────────────────────────── */
-#word-zone-section {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-}
-
 #word-zone {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-top: 10px;
 }
 
 .word-row {
