@@ -278,6 +278,10 @@ function renderAll(state, wordGroups, dict, message) {
     renderComputerReveal(state);
     renderRoundResult(state);
     renderWordZone(displayGroups, dict, false);
+  } else if (state.outBy === 'computer') {
+    renderComputerReveal(state);
+    hideResultPanel();
+    renderWordZone(displayGroups, dict, interactive);
   } else {
     renderComputerHand(state);
     hideResultPanel();
