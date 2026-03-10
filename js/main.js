@@ -66,6 +66,16 @@ function attachDragListeners() {
 
     onDiscardCard(cardId) {
       if (gameState.turn !== 'player' || gameState.turnPhase !== 'discard' || gameState.phase !== 'round') return;
+      // If the card is in a word group, move it to hand first
+      if (!gameState.player.hand.find(c => c.id === cardId)) {
+        for (const group of playerWordGroups) {
+          const idx = group.findIndex(c => c.id === cardId);
+          if (idx !== -1) {
+            gameState.player.hand.push(...group.splice(idx, 1));
+            break;
+          }
+        }
+      }
       if (!gameState.player.hand.find(c => c.id === cardId)) return;
       discardAndEndTurn(cardId);
     },

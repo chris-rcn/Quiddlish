@@ -117,7 +117,7 @@ function initDragAndDrop(opts) {
   const discardPileEl = document.getElementById('discard-pile');
   if (discardPileEl) {
     discardPileEl.addEventListener('dragover', e => {
-      if (dragState && dragState.sourceType === 'hand') {
+      if (dragState && (dragState.sourceType === 'hand' || dragState.sourceType === 'word')) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         discardPileEl.classList.add('drag-over');
@@ -127,7 +127,7 @@ function initDragAndDrop(opts) {
     discardPileEl.addEventListener('drop', e => {
       e.preventDefault();
       discardPileEl.classList.remove('drag-over');
-      if (dragState && dragState.sourceType === 'hand') {
+      if (dragState && (dragState.sourceType === 'hand' || dragState.sourceType === 'word')) {
         opts.onDiscardCard(dragState.cardId);
       }
       dragState = null;
@@ -262,7 +262,9 @@ function initTouchDragAndDrop(opts) {
           touchOpts.onHandReorderById(cardId, target.cardId);
         }
       } else if (sourceType === 'word') {
-        if ((target.type === 'word-card' || target.type === 'word-row') && target.rowIndex !== wordRowIndex) {
+        if (target.type === 'discard') {
+          touchOpts.onDiscardCard(cardId);
+        } else if ((target.type === 'word-card' || target.type === 'word-row') && target.rowIndex !== wordRowIndex) {
           touchOpts.onWordToWord(cardId, wordRowIndex, target.rowIndex);
         } else if (target.type === 'hand-card' || target.type === 'hand') {
           touchOpts.onWordToHand(cardId, wordRowIndex);
