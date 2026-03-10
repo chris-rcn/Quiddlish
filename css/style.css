@@ -291,10 +291,9 @@ body {
   transition: border-color 0.15s, background 0.15s;
 }
 
-.word-row.row-valid    { border-color: var(--success); background: rgba(60,187,110,0.07); }
-.word-row.row-invalid  { border-color: var(--danger);  background: rgba(224,80,80,0.07); }
-.word-row.row-building { border-color: var(--accent2); background: rgba(232,160,32,0.07); }
-.word-row.row-empty    { border-style: dashed; }
+.word-row.row-valid   { border-color: var(--success); background: rgba(60,187,110,0.07); }
+.word-row.row-invalid { border-color: var(--danger);  background: rgba(224,80,80,0.07); }
+.word-row.row-empty   { border-style: dashed; }
 .word-row.drag-over   { border-color: var(--accent); background: rgba(74,144,217,0.1); }
 
 .word-row-cards {

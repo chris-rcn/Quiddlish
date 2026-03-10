@@ -119,8 +119,7 @@ function renderWordZone(wordGroups, dict, interactive) {
     const word = group.map(c => c.letters).join('').toLowerCase();
     const isValid = group.length >= 3 && dict && dict.has(word);
     const isEmpty = group.length === 0;
-    const rowState = isEmpty ? 'row-empty' : isValid ? 'row-valid' : group.length < 3 ? 'row-building' : 'row-invalid';
-    rowEl.classList.add(rowState);
+    rowEl.classList.add(isEmpty ? 'row-empty' : isValid ? 'row-valid' : 'row-invalid');
 
     // Cards in this row
     const cardsEl = document.createElement('div');
@@ -130,13 +129,18 @@ function renderWordZone(wordGroups, dict, interactive) {
     }
     rowEl.appendChild(cardsEl);
 
-    // Badge (valid words only)
-    if (!isEmpty && isValid) {
+    // Badge
+    if (!isEmpty) {
       const badge = document.createElement('span');
       badge.className = 'word-badge';
-      const pts = group.reduce((s, c) => s + c.points, 0);
-      badge.textContent = `✓ ${word.toUpperCase()} (${pts} pts)`;
-      badge.classList.add('badge-valid');
+      if (isValid) {
+        const pts = group.reduce((s, c) => s + c.points, 0);
+        badge.textContent = `✓ ${word.toUpperCase()} (${pts} pts)`;
+        badge.classList.add('badge-valid');
+      } else if (group.length < 3) {
+        badge.textContent = 'Need ≥3 cards';
+        badge.classList.add('badge-invalid');
+      }
       rowEl.appendChild(badge);
     }
 
