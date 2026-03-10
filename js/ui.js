@@ -138,7 +138,7 @@ function renderWordZone(wordGroups, dict, interactive) {
         badge.textContent = `✓ ${word.toUpperCase()} (${pts} pts)`;
         badge.classList.add('badge-valid');
       } else if (group.length < 3) {
-        badge.textContent = 'Need ≥3 cards';
+        badge.textContent = 'Need 3+ cards';
         badge.classList.add('badge-invalid');
       }
       rowEl.appendChild(badge);
