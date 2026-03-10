@@ -42,13 +42,17 @@
     <section id="piles-section">
       <div class="pile-group">
         <div class="pile-label">Deck</div>
-        <div id="deck-pile" class="pile"></div>
-        <button id="draw-deck-btn" class="btn btn-draw" disabled>Draw</button>
+        <div class="pile-row">
+          <button id="draw-deck-btn" class="btn btn-draw" disabled>Draw</button>
+          <div id="deck-pile" class="pile"></div>
+        </div>
       </div>
       <div class="pile-group">
         <div class="pile-label">Discard</div>
-        <div id="discard-pile" class="pile"></div>
-        <button id="draw-discard-btn" class="btn btn-draw" disabled>Take</button>
+        <div class="pile-row">
+          <div id="discard-pile" class="pile"></div>
+          <button id="draw-discard-btn" class="btn btn-draw" disabled>Take</button>
+        </div>
       </div>
     </section>
 
