@@ -129,18 +129,13 @@ function renderWordZone(wordGroups, dict, interactive) {
     }
     rowEl.appendChild(cardsEl);
 
-    // Badge
-    if (!isEmpty) {
+    // Badge (valid words only)
+    if (!isEmpty && isValid) {
       const badge = document.createElement('span');
       badge.className = 'word-badge';
-      if (isValid) {
-        const pts = group.reduce((s, c) => s + c.points, 0);
-        badge.textContent = `✓ ${word.toUpperCase()} (${pts} pts)`;
-        badge.classList.add('badge-valid');
-      } else if (group.length > 0) {
-        badge.textContent = group.length < 3 ? 'Need ≥3 cards' : `✗ "${word.toUpperCase()}"`;
-        badge.classList.add('badge-invalid');
-      }
+      const pts = group.reduce((s, c) => s + c.points, 0);
+      badge.textContent = `✓ ${word.toUpperCase()} (${pts} pts)`;
+      badge.classList.add('badge-valid');
       rowEl.appendChild(badge);
     }
 
