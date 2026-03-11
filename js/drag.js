@@ -218,6 +218,14 @@ function initTouchDragAndDrop(opts) {
         return { type: 'word-row', rowIndex: parseInt(row.dataset.rowIndex, 10) };
       }
     }
+    // Fallback: finger may have gone past the right edge of the player hand.
+    const handFallback = document.getElementById('player-hand');
+    if (handFallback) {
+      const rect = handFallback.getBoundingClientRect();
+      if (y >= rect.top && y <= rect.bottom) {
+        return { type: 'hand' };
+      }
+    }
     return null;
   }
 
@@ -278,6 +286,8 @@ function initTouchDragAndDrop(opts) {
           touchOpts.onCardToWord(cardId, target.rowIndex);
         } else if (target.type === 'hand-card' && target.cardId !== cardId) {
           touchOpts.onHandReorderById(cardId, target.cardId);
+        } else if (target.type === 'hand') {
+          touchOpts.onHandMoveToEnd(cardId);
         }
       } else if (sourceType === 'word') {
         if (target.type === 'discard') {

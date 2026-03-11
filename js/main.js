@@ -33,6 +33,14 @@ function attachDragListeners() {
       refresh();
     },
 
+    onHandMoveToEnd(cardId) {
+      const hand = gameState.player.hand;
+      const idx = hand.findIndex(c => c.id === cardId);
+      if (idx === -1) return;
+      hand.push(hand.splice(idx, 1)[0]);
+      refresh();
+    },
+
     onCardToWord(cardId, rowIndex) {
       const hand = gameState.player.hand;
       const cardIdx = hand.findIndex(c => c.id === cardId);
