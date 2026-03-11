@@ -109,7 +109,8 @@ function initDragAndDrop(opts) {
         opts.onCardToWordInsertBefore(dragState.cardId, targetRow, el.dataset.cardId);
       } else if (dragState.sourceType === 'word') {
         if (dragState.wordRowIndex !== targetRow) {
-          opts.onWordToWord(dragState.cardId, dragState.wordRowIndex, targetRow);
+          // Dropped onto a specific card in another row → insert before it
+          opts.onWordToWordInsertBefore(dragState.cardId, dragState.wordRowIndex, targetRow, el.dataset.cardId);
         } else if (dragState.cardId !== el.dataset.cardId) {
           opts.onWordReorderById(dragState.cardId, targetRow, el.dataset.cardId);
         }
@@ -315,7 +316,11 @@ function initTouchDragAndDrop(opts) {
       } else if (sourceType === 'word') {
         if (target.type === 'discard') {
           touchOpts.onDiscardCard(cardId);
-        } else if ((target.type === 'word-card' || target.type === 'word-row') && target.rowIndex !== wordRowIndex) {
+        } else if (target.type === 'word-card' && target.rowIndex !== wordRowIndex) {
+          // Dropped onto a specific card in another row → insert before it
+          touchOpts.onWordToWordInsertBefore(cardId, wordRowIndex, target.rowIndex, target.cardId);
+        } else if (target.type === 'word-row' && target.rowIndex !== wordRowIndex) {
+          // Dropped on a row's background → append to end
           touchOpts.onWordToWord(cardId, wordRowIndex, target.rowIndex);
         } else if ((target.type === 'word-card' && target.rowIndex === wordRowIndex) ||
                    (target.type === 'word-row' && target.rowIndex === wordRowIndex)) {

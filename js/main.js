@@ -119,6 +119,19 @@ function attachDragListeners() {
       refresh();
     },
 
+    onWordToWordInsertBefore(cardId, fromRow, toRow, targetCardId) {
+      if (fromRow >= playerWordGroups.length) return;
+      const srcGroup = playerWordGroups[fromRow];
+      const cardIdx  = srcGroup.findIndex(c => c.id === cardId);
+      if (cardIdx === -1) return;
+      const [card] = srcGroup.splice(cardIdx, 1);
+      while (playerWordGroups.length <= toRow) playerWordGroups.push([]);
+      const dstGroup = playerWordGroups[toRow];
+      const targetIdx = dstGroup.findIndex(c => c.id === targetCardId);
+      if (targetIdx === -1) { dstGroup.push(card); } else { dstGroup.splice(targetIdx, 0, card); }
+      refresh();
+    },
+
     onDiscardCard(cardId) {
       if (gameState.turn !== 'player' || gameState.turnPhase !== 'discard' || gameState.phase !== 'round') return;
       // If the card is in a word group, move it to hand first

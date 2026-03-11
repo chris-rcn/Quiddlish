@@ -196,9 +196,9 @@ function renderButtons(state) {
   const wordZone = document.getElementById('word-zone');
   wordZone.classList.toggle('hidden', state.phase === 'start' || state.phase === 'gameEnd');
 
-  // Shuffle hand button: available during the player's discard phase
+  // Shuffle hand button: available any time it's the player's turn
   const shuffleBtn = document.getElementById('shuffle-hand-btn');
-  if (shuffleBtn) shuffleBtn.disabled = !(isPlayerTurn && state.turnPhase === 'discard');
+  if (shuffleBtn) shuffleBtn.disabled = !isPlayerTurn;
 
   // Yellow border on the board during the final turn of a round
   document.getElementById('board').classList.toggle(
