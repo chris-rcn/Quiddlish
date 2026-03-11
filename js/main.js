@@ -29,7 +29,8 @@ function attachDragListeners() {
       const fromIdx = hand.findIndex(c => c.id === dragId);
       const toIdx   = hand.findIndex(c => c.id === targetId);
       if (fromIdx === -1 || toIdx === -1) return;
-      [hand[fromIdx], hand[toIdx]] = [hand[toIdx], hand[fromIdx]];
+      const [card] = hand.splice(fromIdx, 1);
+      hand.splice(toIdx > fromIdx ? toIdx - 1 : toIdx, 0, card);
       refresh();
     },
 
