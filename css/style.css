@@ -184,9 +184,14 @@ body {
   box-shadow: 3px 6px 14px var(--shadow);
 }
 
-#word-zone .card:hover {
+#word-zone .card {
+  transition: none;
+}
+
+#word-zone .card:hover,
+#word-zone .card.dragging {
   transform: none;
-  box-shadow: none;
+  box-shadow: 2px 3px 8px var(--shadow);
 }
 
 
