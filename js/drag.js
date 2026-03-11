@@ -49,8 +49,8 @@ function initDragAndDrop(opts) {
       if (dragState && dragState.sourceType === 'hand' && dragState.cardId !== el.dataset.cardId) {
         opts.onHandReorderById(dragState.cardId, el.dataset.cardId);
       } else if (dragState && dragState.sourceType === 'word') {
-        // Word card dropped onto a hand card → move to hand
-        opts.onWordToHand(dragState.cardId, dragState.wordRowIndex);
+        // Word card dropped onto a hand card → insert before that card
+        opts.onWordToHandInsertBefore(dragState.cardId, dragState.wordRowIndex, el.dataset.cardId);
       }
       dragState = null;
     });
@@ -105,7 +105,8 @@ function initDragAndDrop(opts) {
       const targetRow = parseInt(el.closest('.word-row').dataset.rowIndex, 10);
       if (!dragState) return;
       if (dragState.sourceType === 'hand') {
-        opts.onCardToWord(dragState.cardId, targetRow);
+        // Insert before the card the user dropped on (position-aware)
+        opts.onCardToWordInsertBefore(dragState.cardId, targetRow, el.dataset.cardId);
       } else if (dragState.sourceType === 'word') {
         if (dragState.wordRowIndex !== targetRow) {
           opts.onWordToWord(dragState.cardId, dragState.wordRowIndex, targetRow);
@@ -283,7 +284,19 @@ function initTouchDragAndDrop(opts) {
         if (target.type === 'discard') {
           touchOpts.onDiscardCard(cardId);
         } else if (target.type === 'word-card' || target.type === 'word-row') {
-          touchOpts.onCardToWord(cardId, target.rowIndex);
+          // Centre-based detection in the target row for position-aware insert.
+          const rowCards = [...document.querySelectorAll(
+            `#word-zone .word-row[data-row-index="${target.rowIndex}"] .card`
+          )];
+          const nearest = rowCards.find(el => {
+            const r = el.getBoundingClientRect();
+            return touch.clientX < r.left + r.width / 2;
+          });
+          if (nearest) {
+            touchOpts.onCardToWordInsertBefore(cardId, target.rowIndex, nearest.dataset.cardId);
+          } else {
+            touchOpts.onCardToWord(cardId, target.rowIndex);
+          }
         } else if (target.type === 'hand-card' || target.type === 'hand') {
           // Use centre-based detection so the transition point is the middle of
           // each card, not its edge.  This handles both on-card and gap drops.
@@ -320,7 +333,17 @@ function initTouchDragAndDrop(opts) {
             touchOpts.onWordMoveToEnd(cardId, wordRowIndex);
           }
         } else if (target.type === 'hand-card' || target.type === 'hand') {
-          touchOpts.onWordToHand(cardId, wordRowIndex);
+          // Centre-based detection in hand for position-aware insert.
+          const handCards = [...document.querySelectorAll('#player-hand .card')];
+          const nearest = handCards.find(el => {
+            const r = el.getBoundingClientRect();
+            return touch.clientX < r.left + r.width / 2;
+          });
+          if (nearest) {
+            touchOpts.onWordToHandInsertBefore(cardId, wordRowIndex, nearest.dataset.cardId);
+          } else {
+            touchOpts.onWordToHand(cardId, wordRowIndex);
+          }
         }
       }
     });

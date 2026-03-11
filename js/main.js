@@ -53,6 +53,18 @@ function attachDragListeners() {
       refresh();
     },
 
+    onCardToWordInsertBefore(cardId, rowIndex, targetCardId) {
+      const hand = gameState.player.hand;
+      const cardIdx = hand.findIndex(c => c.id === cardId);
+      if (cardIdx === -1) return;
+      const [card] = hand.splice(cardIdx, 1);
+      while (playerWordGroups.length <= rowIndex) playerWordGroups.push([]);
+      const group = playerWordGroups[rowIndex];
+      const targetIdx = group.findIndex(c => c.id === targetCardId);
+      if (targetIdx === -1) { group.push(card); } else { group.splice(targetIdx, 0, card); }
+      refresh();
+    },
+
     onWordToHand(cardId, rowIndex) {
       if (rowIndex >= playerWordGroups.length) return;
       const group = playerWordGroups[rowIndex];
@@ -60,6 +72,18 @@ function attachDragListeners() {
       if (cardIdx === -1) return;
       const [card] = group.splice(cardIdx, 1);
       gameState.player.hand.push(card);
+      refresh();
+    },
+
+    onWordToHandInsertBefore(cardId, rowIndex, targetCardId) {
+      if (rowIndex >= playerWordGroups.length) return;
+      const group = playerWordGroups[rowIndex];
+      const cardIdx = group.findIndex(c => c.id === cardId);
+      if (cardIdx === -1) return;
+      const [card] = group.splice(cardIdx, 1);
+      const hand = gameState.player.hand;
+      const targetIdx = hand.findIndex(c => c.id === targetCardId);
+      if (targetIdx === -1) { hand.push(card); } else { hand.splice(targetIdx, 0, card); }
       refresh();
     },
 
@@ -127,6 +151,15 @@ document.addEventListener('click', e => {
   // ── Next Round ────────────────────────────────────────────────────────────
   if (e.target.id === 'next-round-btn') {
     startNextRound();
+    return;
+  }
+
+  // ── Shuffle hand ──────────────────────────────────────────────────────────
+  if (e.target.id === 'shuffle-hand-btn') {
+    if (gameState.turn === 'player' && gameState.turnPhase === 'discard' && gameState.phase === 'round') {
+      shuffleDeck(gameState.player.hand);
+      refresh();
+    }
     return;
   }
 

@@ -195,6 +195,16 @@ function renderButtons(state) {
   // Word-zone is always visible during a round
   const wordZone = document.getElementById('word-zone');
   wordZone.classList.toggle('hidden', state.phase === 'start' || state.phase === 'gameEnd');
+
+  // Shuffle hand button: available during the player's discard phase
+  const shuffleBtn = document.getElementById('shuffle-hand-btn');
+  if (shuffleBtn) shuffleBtn.disabled = !(isPlayerTurn && state.turnPhase === 'discard');
+
+  // Yellow border on the board during the final turn of a round
+  document.getElementById('board').classList.toggle(
+    'final-turn',
+    state.outBy !== null && state.phase === 'round'
+  );
 }
 
 // ─── Status message ──────────────────────────────────────────────────────────

@@ -102,10 +102,23 @@ body {
   gap: 14px;
 }
 
+/* Highlight the whole board on the final turn of a round */
+#board.final-turn {
+  box-shadow: 0 0 0 3px var(--accent2), 0 0 24px rgba(232,160,32,0.25);
+  border-radius: var(--radius);
+}
+
 .hand-section {
   background: var(--surface);
   border-radius: var(--radius);
   padding: 12px 14px;
+}
+
+.player-hand-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
 }
 
 .hand-label {
@@ -114,6 +127,15 @@ body {
   letter-spacing: 1px;
   color: var(--text-muted);
   margin-bottom: 10px;
+}
+
+.player-hand-header .hand-label {
+  margin-bottom: 0;
+}
+
+.btn-sm {
+  padding: 4px 12px;
+  font-size: 0.75rem;
 }
 
 .hint {
