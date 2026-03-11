@@ -287,7 +287,19 @@ function initTouchDragAndDrop(opts) {
         } else if (target.type === 'hand-card' && target.cardId !== cardId) {
           touchOpts.onHandReorderById(cardId, target.cardId);
         } else if (target.type === 'hand') {
-          touchOpts.onHandMoveToEnd(cardId);
+          // Finger landed in a gap between cards — find the first card whose
+          // centre is to the right of the finger and insert before it.
+          const handCards = [...document.querySelectorAll('#player-hand .card')]
+            .filter(el => el.dataset.cardId !== cardId);
+          const nearest = handCards.find(el => {
+            const r = el.getBoundingClientRect();
+            return touch.clientX < r.left + r.width / 2;
+          });
+          if (nearest) {
+            touchOpts.onHandReorderById(cardId, nearest.dataset.cardId);
+          } else {
+            touchOpts.onHandMoveToEnd(cardId);
+          }
         }
       } else if (sourceType === 'word') {
         if (target.type === 'discard') {
@@ -297,7 +309,19 @@ function initTouchDragAndDrop(opts) {
         } else if ((target.type === 'word-card' || target.type === 'word-row') && target.rowIndex !== wordRowIndex) {
           touchOpts.onWordToWord(cardId, wordRowIndex, target.rowIndex);
         } else if (target.type === 'word-row' && target.rowIndex === wordRowIndex) {
-          touchOpts.onWordMoveToEnd(cardId, wordRowIndex);
+          // Gap within the same row — insert before the nearest card to the right.
+          const rowCards = [...document.querySelectorAll(
+            `#word-zone .word-row[data-row-index="${wordRowIndex}"] .card`
+          )].filter(el => el.dataset.cardId !== cardId);
+          const nearest = rowCards.find(el => {
+            const r = el.getBoundingClientRect();
+            return touch.clientX < r.left + r.width / 2;
+          });
+          if (nearest) {
+            touchOpts.onWordReorderById(cardId, wordRowIndex, nearest.dataset.cardId);
+          } else {
+            touchOpts.onWordMoveToEnd(cardId, wordRowIndex);
+          }
         } else if (target.type === 'hand-card' || target.type === 'hand') {
           touchOpts.onWordToHand(cardId, wordRowIndex);
         }
