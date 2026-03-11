@@ -312,7 +312,6 @@ function renderAll(state, wordGroups, dict, message) {
 
   if (state.phase === 'roundEnd' || state.phase === 'gameEnd') {
     renderComputerReveal(state);
-    renderRoundResult(state);
     renderWordZone(displayGroups, dict, false);
   } else if (state.outBy === 'computer') {
     renderComputerReveal(state);
