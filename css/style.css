@@ -184,6 +184,11 @@ body {
   box-shadow: 3px 6px 14px var(--shadow);
 }
 
+#word-zone .card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 
 .card.dragging {
   opacity: 0.5;
