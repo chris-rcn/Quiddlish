@@ -284,11 +284,9 @@ function initTouchDragAndDrop(opts) {
           touchOpts.onDiscardCard(cardId);
         } else if (target.type === 'word-card' || target.type === 'word-row') {
           touchOpts.onCardToWord(cardId, target.rowIndex);
-        } else if (target.type === 'hand-card' && target.cardId !== cardId) {
-          touchOpts.onHandReorderById(cardId, target.cardId);
-        } else if (target.type === 'hand') {
-          // Finger landed in a gap between cards — find the first card whose
-          // centre is to the right of the finger and insert before it.
+        } else if (target.type === 'hand-card' || target.type === 'hand') {
+          // Use centre-based detection so the transition point is the middle of
+          // each card, not its edge.  This handles both on-card and gap drops.
           const handCards = [...document.querySelectorAll('#player-hand .card')]
             .filter(el => el.dataset.cardId !== cardId);
           const nearest = handCards.find(el => {
@@ -304,12 +302,11 @@ function initTouchDragAndDrop(opts) {
       } else if (sourceType === 'word') {
         if (target.type === 'discard') {
           touchOpts.onDiscardCard(cardId);
-        } else if (target.type === 'word-card' && target.rowIndex === wordRowIndex && target.cardId !== cardId) {
-          touchOpts.onWordReorderById(cardId, wordRowIndex, target.cardId);
         } else if ((target.type === 'word-card' || target.type === 'word-row') && target.rowIndex !== wordRowIndex) {
           touchOpts.onWordToWord(cardId, wordRowIndex, target.rowIndex);
-        } else if (target.type === 'word-row' && target.rowIndex === wordRowIndex) {
-          // Gap within the same row — insert before the nearest card to the right.
+        } else if ((target.type === 'word-card' && target.rowIndex === wordRowIndex) ||
+                   (target.type === 'word-row' && target.rowIndex === wordRowIndex)) {
+          // Centre-based detection for same-row reorder (on-card or gap).
           const rowCards = [...document.querySelectorAll(
             `#word-zone .word-row[data-row-index="${wordRowIndex}"] .card`
           )].filter(el => el.dataset.cardId !== cardId);
