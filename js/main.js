@@ -20,6 +20,26 @@ function refresh(message) {
   }
 }
 
+// ─── Round-score logging ──────────────────────────────────────────────────────
+
+function logRoundScores(state) {
+  const pLong = state.player.longestWord;
+  const cLong = state.computer.longestWord;
+  if (pLong > cLong) {
+    renderMessage('Longest-word bonus: You +10 pts');
+  } else if (cLong > pLong) {
+    renderMessage('Longest-word bonus: Computer +10 pts');
+  }
+  for (const [who, label] of [['computer', 'Computer'], ['player', 'You']]) {
+    const p = state[who];
+    const wordsPoints = p.words.flat().reduce((s, c) => s + c.points, 0);
+    const unusedPoints = p.hand.reduce((s, c) => s + c.points, 0);
+    const parts = [`${label}: words +${wordsPoints}`];
+    if (unusedPoints > 0) parts.push(`unused −${unusedPoints}`);
+    renderMessage(parts.join(', '));
+  }
+}
+
 // ─── Draw-from-discard helpers (used by drag callbacks) ──────────────────────
 
 function doDrawFromDiscard() {
@@ -280,6 +300,7 @@ function discardAndEndTurn(cardId) {
     endFinalTurn(gameState, playerWordGroups, dict);
     playerWordGroups = [];
     checkGameEnd(gameState);
+    logRoundScores(gameState);
     refresh();
   } else {
     // If the card being discarded is the only card left in hand and the word
@@ -291,13 +312,15 @@ function discardAndEndTurn(cardId) {
       discardCard(gameState, cardId);      // hand is now empty
       const result = goOut(gameState, playerWordGroups, dict);
       playerWordGroups = [];
+      const playerWordPts = gameState.player.words.flat().reduce((s, c) => s + c.points, 0);
       if (result.isFinalTurn) {
         scoreRound(gameState);
         gameState.phase = 'roundEnd';
         checkGameEnd(gameState);
-        refresh();
+        logRoundScores(gameState);
+        refresh(`You went out — words scored +${playerWordPts} pts.`);
       } else {
-        refresh('You went out! Computer takes one final turn…');
+        refresh(`You went out — words scored +${playerWordPts} pts. Computer takes one final turn…`);
         setTimeout(runComputerFinalTurn, 400);
       }
       return;
@@ -320,7 +343,8 @@ function runComputerTurn() {
 
   if (result.wentOut) {
     // Computer went out — player gets one final turn (turn already set to 'player' by goOut)
-    refresh(`Computer went out with ${result.words.length} word(s)! Your final turn — draw a card.`);
+    const computerWordPts = result.words.flat().reduce((s, c) => s + c.points, 0);
+    refresh(`Computer went out with ${result.words.length} word(s) (+${computerWordPts} pts)! Your final turn — draw a card.`);
     return;
   }
 
@@ -337,13 +361,18 @@ function runComputerFinalTurn() {
     scoreRound(gameState);
     gameState.phase = 'roundEnd';
     checkGameEnd(gameState);
+    logRoundScores(gameState);
     refresh();
     return;
   }
 
   const result = aiTakeTurn(gameState, dict);
 
-  if (!result.wentOut) {
+  let computerGoOutMsg = null;
+  if (result.wentOut) {
+    const computerWordPts = result.words.flat().reduce((s, c) => s + c.points, 0);
+    computerGoOutMsg = `Computer went out — words scored +${computerWordPts} pts.`;
+  } else {
     // Computer couldn't go out — commit its best partial word arrangement
     const partial = findPartialPartition(gameState.computer.hand, dict, 300);
     const usedIds = new Set(partial.words.flat().map(c => c.id));
@@ -356,7 +385,8 @@ function runComputerFinalTurn() {
   gameState.finalTurnDone = true;
   gameState.phase = 'roundEnd';
   checkGameEnd(gameState);
-  refresh();
+  logRoundScores(gameState);
+  refresh(computerGoOutMsg);
 }
 
 // ─── Round / game management ──────────────────────────────────────────────────

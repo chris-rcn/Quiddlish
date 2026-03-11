@@ -113,8 +113,6 @@ function initDragAndDrop(opts) {
       } else if (dragState.sourceType === 'word') {
         if (dragState.wordRowIndex !== targetRow) {
           opts.onWordToWordInsertBefore(dragState.cardId, dragState.wordRowIndex, targetRow, el.dataset.cardId);
-        } else if (dragState.cardId !== el.dataset.cardId) {
-          opts.onWordReorderById(dragState.cardId, targetRow, el.dataset.cardId);
         }
       } else if (dragState.sourceType === 'discard') {
         opts.onDrawFromDiscardToWordBefore(targetRow, el.dataset.cardId);
@@ -171,8 +169,6 @@ function initDragAndDrop(opts) {
       } else if (dragState.sourceType === 'word') {
         if (dragState.wordRowIndex !== targetRow) {
           opts.onWordToWord(dragState.cardId, dragState.wordRowIndex, targetRow);
-        } else {
-          opts.onWordMoveToEnd(dragState.cardId, targetRow);
         }
       } else if (dragState.sourceType === 'discard') {
         opts.onDrawFromDiscardToWord(targetRow);
@@ -343,21 +339,6 @@ function initTouchDragAndDrop(opts) {
         } else if (target.type === 'word-row' && target.rowIndex !== wordRowIndex) {
           // Dropped on a row's background → append to end
           touchOpts.onWordToWord(cardId, wordRowIndex, target.rowIndex);
-        } else if ((target.type === 'word-card' && target.rowIndex === wordRowIndex) ||
-                   (target.type === 'word-row' && target.rowIndex === wordRowIndex)) {
-          // Centre-based detection for same-row reorder (on-card or gap).
-          const rowCards = [...document.querySelectorAll(
-            `#word-zone .word-row[data-row-index="${wordRowIndex}"] .card`
-          )].filter(el => el.dataset.cardId !== cardId);
-          const nearest = rowCards.find(el => {
-            const r = el.getBoundingClientRect();
-            return touch.clientX < r.left + r.width / 2;
-          });
-          if (nearest) {
-            touchOpts.onWordReorderById(cardId, wordRowIndex, nearest.dataset.cardId);
-          } else {
-            touchOpts.onWordMoveToEnd(cardId, wordRowIndex);
-          }
         } else if (target.type === 'hand-card' || target.type === 'hand') {
           // Centre-based detection in hand for position-aware insert.
           const handCards = [...document.querySelectorAll('#player-hand .card')];
