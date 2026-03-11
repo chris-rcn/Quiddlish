@@ -200,10 +200,23 @@ function renderButtons(state) {
   const shuffleBtn = document.getElementById('shuffle-hand-btn');
   if (shuffleBtn) shuffleBtn.disabled = !isPlayerTurn;
 
-  // Yellow border on the board during the final turn of a round
-  document.getElementById('board').classList.toggle(
+  // Piles section hint message
+  const pilesMsg = document.getElementById('piles-message');
+  if (pilesMsg) {
+    if (isPlayerTurn && drawPhase) {
+      pilesMsg.textContent = 'Draw from the deck or discard pile';
+    } else if (isPlayerTurn && !drawPhase) {
+      pilesMsg.textContent = 'Discard a card to end your turn';
+    } else {
+      pilesMsg.textContent = '';
+    }
+  }
+
+  // Yellow border around the player's area only during THEIR final turn
+  // (i.e. computer went out, player still has one turn left)
+  document.getElementById('player-section').classList.toggle(
     'final-turn',
-    state.outBy !== null && state.phase === 'round'
+    state.outBy === 'computer' && state.phase === 'round'
   );
 }
 

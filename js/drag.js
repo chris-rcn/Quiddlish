@@ -32,9 +32,9 @@ function initDragAndDrop(opts) {
       document.querySelectorAll('.drag-over').forEach(x => x.classList.remove('drag-over'));
     });
 
-    // Allow dropping another hand card here (for reordering)
+    // Allow dropping another hand card or the discard top card here
     el.addEventListener('dragover', e => {
-      if (dragState && dragState.sourceType === 'hand') {
+      if (dragState && (dragState.sourceType === 'hand' || dragState.sourceType === 'discard')) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         el.classList.add('drag-over');
@@ -49,18 +49,19 @@ function initDragAndDrop(opts) {
       if (dragState && dragState.sourceType === 'hand' && dragState.cardId !== el.dataset.cardId) {
         opts.onHandReorderById(dragState.cardId, el.dataset.cardId);
       } else if (dragState && dragState.sourceType === 'word') {
-        // Word card dropped onto a hand card → insert before that card
         opts.onWordToHandInsertBefore(dragState.cardId, dragState.wordRowIndex, el.dataset.cardId);
+      } else if (dragState && dragState.sourceType === 'discard') {
+        opts.onDrawFromDiscardToHandBefore(el.dataset.cardId);
       }
       dragState = null;
     });
   });
 
-  // ── hand zone background drop (for word→hand when not over a card) ────────
+  // ── hand zone background drop (for word→hand and discard→hand) ───────────
   const handEl = document.getElementById('player-hand');
   if (handEl) {
     handEl.addEventListener('dragover', e => {
-      if (dragState && dragState.sourceType === 'word') {
+      if (dragState && (dragState.sourceType === 'word' || dragState.sourceType === 'discard')) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
       }
@@ -69,6 +70,9 @@ function initDragAndDrop(opts) {
       e.preventDefault();
       if (dragState && dragState.sourceType === 'word') {
         opts.onWordToHand(dragState.cardId, dragState.wordRowIndex);
+        dragState = null;
+      } else if (dragState && dragState.sourceType === 'discard') {
+        opts.onDrawFromDiscardToHand();
         dragState = null;
       }
     });
@@ -105,15 +109,15 @@ function initDragAndDrop(opts) {
       const targetRow = parseInt(el.closest('.word-row').dataset.rowIndex, 10);
       if (!dragState) return;
       if (dragState.sourceType === 'hand') {
-        // Insert before the card the user dropped on (position-aware)
         opts.onCardToWordInsertBefore(dragState.cardId, targetRow, el.dataset.cardId);
       } else if (dragState.sourceType === 'word') {
         if (dragState.wordRowIndex !== targetRow) {
-          // Dropped onto a specific card in another row → insert before it
           opts.onWordToWordInsertBefore(dragState.cardId, dragState.wordRowIndex, targetRow, el.dataset.cardId);
         } else if (dragState.cardId !== el.dataset.cardId) {
           opts.onWordReorderById(dragState.cardId, targetRow, el.dataset.cardId);
         }
+      } else if (dragState.sourceType === 'discard') {
+        opts.onDrawFromDiscardToWordBefore(targetRow, el.dataset.cardId);
       }
       dragState = null;
     });
@@ -170,10 +174,27 @@ function initDragAndDrop(opts) {
         } else {
           opts.onWordMoveToEnd(dragState.cardId, targetRow);
         }
+      } else if (dragState.sourceType === 'discard') {
+        opts.onDrawFromDiscardToWord(targetRow);
       }
       dragState = null;
     });
   });
+
+  // ── discard pile top card as a drag source (draw by dragging) ───────────
+  const discardTopCard = document.querySelector('#discard-pile .card:not(.card-empty)');
+  if (discardTopCard) {
+    discardTopCard.setAttribute('draggable', 'true');
+    discardTopCard.addEventListener('dragstart', e => {
+      dragState = { cardId: discardTopCard.dataset.cardId, sourceType: 'discard' };
+      e.dataTransfer.effectAllowed = 'move';
+      discardTopCard.classList.add('dragging');
+    });
+    discardTopCard.addEventListener('dragend', () => {
+      discardTopCard.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach(x => x.classList.remove('drag-over'));
+    });
+  }
 
   // ── touch drag-and-drop (iOS Safari) ─────────────────────────────────────
   initTouchDragAndDrop(opts);
@@ -350,6 +371,32 @@ function initTouchDragAndDrop(opts) {
             touchOpts.onWordToHand(cardId, wordRowIndex);
           }
         }
+      } else if (sourceType === 'discard') {
+        if (target.type === 'word-card' || target.type === 'word-row') {
+          const rowCards = [...document.querySelectorAll(
+            `#word-zone .word-row[data-row-index="${target.rowIndex}"] .card`
+          )];
+          const nearest = rowCards.find(el => {
+            const r = el.getBoundingClientRect();
+            return touch.clientX < r.left + r.width / 2;
+          });
+          if (nearest) {
+            touchOpts.onDrawFromDiscardToWordBefore(target.rowIndex, nearest.dataset.cardId);
+          } else {
+            touchOpts.onDrawFromDiscardToWord(target.rowIndex);
+          }
+        } else if (target.type === 'hand-card' || target.type === 'hand') {
+          const handCards = [...document.querySelectorAll('#player-hand .card')];
+          const nearest = handCards.find(el => {
+            const r = el.getBoundingClientRect();
+            return touch.clientX < r.left + r.width / 2;
+          });
+          if (nearest) {
+            touchOpts.onDrawFromDiscardToHandBefore(nearest.dataset.cardId);
+          } else {
+            touchOpts.onDrawFromDiscardToHand();
+          }
+        }
       }
     });
   }
@@ -363,4 +410,8 @@ function initTouchDragAndDrop(opts) {
   document.querySelectorAll('#word-zone .card').forEach(el => {
     attachTouch(el, 'word', () => parseInt(el.closest('.word-row').dataset.rowIndex, 10));
   });
+  const discardTouchCard = document.querySelector('#discard-pile .card:not(.card-empty)');
+  if (discardTouchCard) {
+    attachTouch(discardTouchCard, 'discard', null);
+  }
 }

@@ -20,6 +20,22 @@ function refresh(message) {
   }
 }
 
+// ─── Draw-from-discard helpers (used by drag callbacks) ──────────────────────
+
+function doDrawFromDiscard() {
+  if (gameState.turn !== 'player' || gameState.turnPhase !== 'draw' || gameState.phase !== 'round') return false;
+  if (!gameState.discard.length) return false;
+  drawFromDiscard(gameState);
+  return true;
+}
+
+function refreshAfterDiscardDraw() {
+  const isFinal = gameState.outBy !== null;
+  refresh(isFinal
+    ? 'Your final turn! Arrange words then drag a card to discard.'
+    : 'Drew from discard. Arrange words, then drag a card to discard.');
+}
+
 // ─── Drag integration ────────────────────────────────────────────────────────
 
 function attachDragListeners() {
@@ -132,6 +148,41 @@ function attachDragListeners() {
       refresh();
     },
 
+    onDrawFromDiscardToHand() {
+      if (!doDrawFromDiscard()) return;
+      refreshAfterDiscardDraw();
+    },
+
+    onDrawFromDiscardToHandBefore(targetCardId) {
+      if (!doDrawFromDiscard()) return;
+      const hand = gameState.player.hand;
+      const drawn = hand[hand.length - 1];
+      const targetIdx = hand.findIndex(c => c.id === targetCardId);
+      if (targetIdx !== -1 && targetIdx < hand.length - 1) {
+        hand.splice(hand.length - 1, 1);
+        hand.splice(targetIdx, 0, drawn);
+      }
+      refreshAfterDiscardDraw();
+    },
+
+    onDrawFromDiscardToWord(rowIndex) {
+      if (!doDrawFromDiscard()) return;
+      const drawn = gameState.player.hand.pop();
+      while (playerWordGroups.length <= rowIndex) playerWordGroups.push([]);
+      playerWordGroups[rowIndex].push(drawn);
+      refreshAfterDiscardDraw();
+    },
+
+    onDrawFromDiscardToWordBefore(rowIndex, targetCardId) {
+      if (!doDrawFromDiscard()) return;
+      const drawn = gameState.player.hand.pop();
+      while (playerWordGroups.length <= rowIndex) playerWordGroups.push([]);
+      const group = playerWordGroups[rowIndex];
+      const targetIdx = group.findIndex(c => c.id === targetCardId);
+      if (targetIdx === -1) { group.push(drawn); } else { group.splice(targetIdx, 0, drawn); }
+      refreshAfterDiscardDraw();
+    },
+
     onDiscardCard(cardId) {
       if (gameState.turn !== 'player' || gameState.turnPhase !== 'discard' || gameState.phase !== 'round') return;
       // If the card is in a word group, move it to hand first
@@ -169,7 +220,7 @@ document.addEventListener('click', e => {
 
   // ── Shuffle hand ──────────────────────────────────────────────────────────
   if (e.target.id === 'shuffle-hand-btn') {
-    if (gameState.turn === 'player' && gameState.turnPhase === 'discard' && gameState.phase === 'round') {
+    if (gameState.turn === 'player' && gameState.phase === 'round') {
       shuffleDeck(gameState.player.hand);
       refresh();
     }

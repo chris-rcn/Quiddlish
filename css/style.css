@@ -102,10 +102,9 @@ body {
   gap: 14px;
 }
 
-/* Highlight the whole board on the final turn of a round */
-#board.final-turn {
-  box-shadow: 0 0 0 3px var(--accent2), 0 0 24px rgba(232,160,32,0.25);
-  border-radius: var(--radius);
+/* Highlight player's area on their final turn (after computer went out) */
+#player-section.final-turn {
+  box-shadow: 0 0 0 3px var(--accent2), 0 0 20px rgba(232,160,32,0.2);
 }
 
 .hand-section {
@@ -284,6 +283,16 @@ body {
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--text-muted);
+}
+
+.piles-message {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  margin-top: 4px;
+  min-height: 1.2em;
+  width: 100%;
 }
 
 .pile {
