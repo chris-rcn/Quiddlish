@@ -27,10 +27,11 @@ function attachDragListeners() {
     onHandReorderById(dragId, targetId) {
       const hand = gameState.player.hand;
       const fromIdx = hand.findIndex(c => c.id === dragId);
-      const toIdx   = hand.findIndex(c => c.id === targetId);
-      if (fromIdx === -1 || toIdx === -1) return;
+      if (fromIdx === -1) return;
       const [card] = hand.splice(fromIdx, 1);
-      hand.splice(toIdx > fromIdx ? toIdx - 1 : toIdx, 0, card);
+      const insertAt = hand.findIndex(c => c.id === targetId);
+      if (insertAt === -1) { hand.push(card); return; }
+      hand.splice(insertAt, 0, card);
       refresh();
     },
 
