@@ -107,10 +107,12 @@ function attachDragListeners() {
       const group = playerWordGroups[rowIndex];
       if (!group) return;
       const fromIdx = group.findIndex(c => c.id === cardId);
-      const toIdx   = group.findIndex(c => c.id === targetCardId);
-      if (fromIdx === -1 || toIdx === -1) return;
+      if (fromIdx === -1) return;
       const [card] = group.splice(fromIdx, 1);
-      group.splice(toIdx > fromIdx ? toIdx - 1 : toIdx, 0, card);
+      // Find target's position AFTER removing the source card so indices are already correct
+      const toIdx = group.findIndex(c => c.id === targetCardId);
+      if (toIdx === -1) { group.push(card); return; }
+      group.splice(toIdx, 0, card);
       refresh();
     },
 

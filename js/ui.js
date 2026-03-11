@@ -212,12 +212,12 @@ function renderButtons(state) {
     }
   }
 
-  // Yellow border around the player's area only during THEIR final turn
-  // (i.e. computer went out, player still has one turn left)
-  document.getElementById('player-section').classList.toggle(
-    'final-turn',
-    state.outBy === 'computer' && state.phase === 'round'
-  );
+  // "Final Turn!" banner and yellow border — only when it's the player's last turn
+  const isFinalPlayerTurn = state.outBy === 'computer' && state.phase === 'round';
+  const playerSection = document.getElementById('player-section');
+  playerSection.classList.toggle('final-turn', isFinalPlayerTurn);
+  const finalBanner = document.getElementById('final-turn-banner');
+  if (finalBanner) finalBanner.classList.toggle('hidden', !isFinalPlayerTurn);
 }
 
 // ─── Status message ──────────────────────────────────────────────────────────

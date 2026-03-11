@@ -40,25 +40,28 @@
 
     <!-- Deck and Discard -->
     <section id="piles-section">
-      <div class="pile-group">
-        <div class="pile-label">Deck</div>
-        <div class="pile-row">
-          <button id="draw-deck-btn" class="btn btn-draw" disabled>Draw</button>
-          <div id="deck-pile" class="pile"></div>
-        </div>
-      </div>
-      <div class="pile-group">
-        <div class="pile-label">Discard</div>
-        <div class="pile-row">
-          <div id="discard-pile" class="pile"></div>
-          <button id="draw-discard-btn" class="btn btn-draw" disabled>Take</button>
-        </div>
-      </div>
       <p id="piles-message" class="piles-message"></p>
+      <div class="piles-groups">
+        <div class="pile-group">
+          <div class="pile-label">Deck</div>
+          <div class="pile-row">
+            <button id="draw-deck-btn" class="btn btn-draw" disabled>Draw</button>
+            <div id="deck-pile" class="pile"></div>
+          </div>
+        </div>
+        <div class="pile-group">
+          <div class="pile-label">Discard</div>
+          <div class="pile-row">
+            <div id="discard-pile" class="pile"></div>
+            <button id="draw-discard-btn" class="btn btn-draw" disabled>Take</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Player's hand and word zone -->
     <section id="player-section" class="hand-section">
+      <div id="final-turn-banner" class="final-turn-banner hidden">Final Turn!</div>
       <div class="player-hand-header">
         <div class="hand-label">
           Your Hand
