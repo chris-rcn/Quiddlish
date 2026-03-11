@@ -364,6 +364,7 @@ function runComputerFinalTurn() {
 function startNewGame() {
   gameState = createGameState();
   playerWordGroups = [];
+  clearGameLog();
   startNextRound();
 }
 

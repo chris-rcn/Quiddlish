@@ -165,11 +165,16 @@ body {
   justify-content: center;
   box-shadow: 2px 3px 8px var(--shadow);
   cursor: grab;
+  -webkit-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
   touch-action: none;
   position: relative;
   transition: transform 0.1s, box-shadow 0.1s;
   flex-shrink: 0;
+}
+
+.card:focus, .card:focus-visible { outline: none; }
 }
 
 .card:active { cursor: grabbing; }
@@ -428,40 +433,52 @@ body {
   flex-wrap: wrap;
 }
 
-/* ── Status message ────────────────────────────────────────────────────────── */
-.status-message {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-  padding: 6px 2px;
-  min-height: 1.4em;
-}
-
-/* ── Result panel ──────────────────────────────────────────────────────────── */
-.result-panel {
-  background: var(--surface2);
-  border: 1px solid var(--border);
+/* ── Game log ──────────────────────────────────────────────────────────────── */
+.game-log {
+  background: var(--surface);
   border-radius: var(--radius);
-  padding: 20px 24px;
+  padding: 10px 14px;
+  max-height: 220px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
 }
 
-.result-panel h2 {
-  font-size: 1.3rem;
+.log-entry {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+
+/* Round/game result entries */
+.log-entry.log-result {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.log-result-title {
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--accent2);
 }
 
-.result-panel p {
-  font-size: 0.95rem;
+.log-result-row {
+  font-size: 0.88rem;
   color: var(--text);
 }
 
-.winner-text {
-  font-size: 1.4rem !important;
+.log-winner {
+  font-size: 1.05rem;
   font-weight: 700;
-  color: var(--success) !important;
-  margin-top: 6px;
+  color: var(--success);
+  margin-top: 4px;
 }
 
 /* ── Buttons ───────────────────────────────────────────────────────────────── */

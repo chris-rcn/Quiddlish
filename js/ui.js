@@ -220,27 +220,42 @@ function renderButtons(state) {
   if (finalBanner) finalBanner.classList.toggle('hidden', !isFinalPlayerTurn);
 }
 
-// ─── Status message ──────────────────────────────────────────────────────────
+// ─── Game log ─────────────────────────────────────────────────────────────────
 
-function renderMessage(text) {
-  document.getElementById('status-message').textContent = text;
+function prependLogEntry(el) {
+  const log = document.getElementById('game-log');
+  log.insertBefore(el, log.firstChild);
 }
 
-// ─── Round / game end panel ──────────────────────────────────────────────────
+function renderMessage(text) {
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.textContent = text;
+  prependLogEntry(entry);
+}
+
+function clearGameLog() {
+  document.getElementById('game-log').innerHTML = '';
+}
+
+// ─── Round / game end log entry ───────────────────────────────────────────────
 
 function renderRoundResult(state) {
-  const panel = document.getElementById('result-panel');
-  panel.innerHTML = '';
+  const entry = document.createElement('div');
+  entry.className = 'log-entry log-result';
 
   const isGame = state.phase === 'gameEnd';
-  const title = document.createElement('h2');
+
+  const title = document.createElement('div');
+  title.className = 'log-result-title';
   title.textContent = isGame ? 'Game Over!' : `Round ${state.round} Results`;
-  panel.appendChild(title);
+  entry.appendChild(title);
 
   function resultRow(label, value) {
-    const p = document.createElement('p');
-    p.innerHTML = `<strong>${label}:</strong> ${value}`;
-    panel.appendChild(p);
+    const row = document.createElement('div');
+    row.className = 'log-result-row';
+    row.innerHTML = `<strong>${label}:</strong> ${value}`;
+    entry.appendChild(row);
   }
 
   if (!isGame) {
@@ -257,24 +272,22 @@ function renderRoundResult(state) {
   resultRow('Computer total', state.computer.score);
 
   if (isGame) {
-    const winner = document.createElement('p');
-    winner.className = 'winner-text';
+    const winner = document.createElement('div');
+    winner.className = 'log-winner';
     if (state.player.score > state.computer.score) {
-      winner.textContent = 'You win! 🎉';
+      winner.textContent = 'You win!';
     } else if (state.computer.score > state.player.score) {
       winner.textContent = 'Computer wins!';
     } else {
       winner.textContent = "It's a tie!";
     }
-    panel.appendChild(winner);
+    entry.appendChild(winner);
   }
 
-  panel.classList.remove('hidden');
+  prependLogEntry(entry);
 }
 
-function hideResultPanel() {
-  document.getElementById('result-panel').classList.add('hidden');
-}
+function hideResultPanel() { /* no-op — results now live in the game log */ }
 
 // ─── Master render ────────────────────────────────────────────────────────────
 
