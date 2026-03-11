@@ -64,6 +64,16 @@ function attachDragListeners() {
       refresh();
     },
 
+    onWordMoveToEnd(cardId, rowIndex) {
+      const group = playerWordGroups[rowIndex];
+      if (!group) return;
+      const fromIdx = group.findIndex(c => c.id === cardId);
+      if (fromIdx === -1 || fromIdx === group.length - 1) return;
+      const [card] = group.splice(fromIdx, 1);
+      group.push(card);
+      refresh();
+    },
+
     onWordToWord(cardId, fromRow, toRow) {
       if (fromRow >= playerWordGroups.length) return;
       const srcGroup = playerWordGroups[fromRow];

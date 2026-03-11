@@ -162,10 +162,13 @@ function initDragAndDrop(opts) {
       if (!dragState) return;
       if (dragState.sourceType === 'hand') {
         opts.onCardToWord(dragState.cardId, targetRow);
-      } else if (dragState.sourceType === 'word' && dragState.wordRowIndex !== targetRow) {
-        opts.onWordToWord(dragState.cardId, dragState.wordRowIndex, targetRow);
+      } else if (dragState.sourceType === 'word') {
+        if (dragState.wordRowIndex !== targetRow) {
+          opts.onWordToWord(dragState.cardId, dragState.wordRowIndex, targetRow);
+        } else {
+          opts.onWordMoveToEnd(dragState.cardId, targetRow);
+        }
       }
-      // same-row background drop: no-op (position unchanged)
       dragState = null;
     });
   });
@@ -273,6 +276,8 @@ function initTouchDragAndDrop(opts) {
           touchOpts.onWordReorderById(cardId, wordRowIndex, target.cardId);
         } else if ((target.type === 'word-card' || target.type === 'word-row') && target.rowIndex !== wordRowIndex) {
           touchOpts.onWordToWord(cardId, wordRowIndex, target.rowIndex);
+        } else if (target.type === 'word-row' && target.rowIndex === wordRowIndex) {
+          touchOpts.onWordMoveToEnd(cardId, wordRowIndex);
         } else if (target.type === 'hand-card' || target.type === 'hand') {
           touchOpts.onWordToHand(cardId, wordRowIndex);
         }
