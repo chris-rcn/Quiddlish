@@ -208,6 +208,15 @@ function initTouchDragAndDrop(opts) {
     if (el.closest('#discard-pile')) {
       return { type: 'discard' };
     }
+    // Fallback: finger may be over the word-zone gap after the last card.
+    // Check raw bounding rects of each word-row.
+    const wordRows = document.querySelectorAll('#word-zone .word-row');
+    for (const row of wordRows) {
+      const rect = row.getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        return { type: 'word-row', rowIndex: parseInt(row.dataset.rowIndex, 10) };
+      }
+    }
     return null;
   }
 
