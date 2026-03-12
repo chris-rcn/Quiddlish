@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiddlish</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── Header ── -->
+  <header id="game-header">
+    <h1 class="game-title">Quiddlish</h1>
+    <div id="round-display" class="round-display">Round — of 8</div>
+    <button id="new-game-btn" class="btn btn-primary" disabled>New Game</button>
+  </header>
+
+  <!-- ── Score bar ── -->
+  <div id="score-bar">
+    <div class="score-block">
+      <span class="score-label">You</span>
+      <span id="player-score" class="score-value">0</span>
+    </div>
+    <div class="score-block">
+      <span class="score-label">Computer</span>
+      <span id="computer-score" class="score-value">0</span>
+    </div>
+  </div>
+
+  <!-- ── Main board ── -->
+  <main id="board">
+
+    <!-- Computer's hand -->
+    <section id="computer-section" class="hand-section">
+      <div id="computer-hand-label" class="hand-label">Computer</div>
+      <div id="computer-hand" class="hand computer-hand"></div>
+    </section>
+
+    <!-- Deck and Discard -->
+    <section id="piles-section">
+      <p id="piles-message" class="piles-message"></p>
+      <div class="piles-groups">
+        <div class="pile-group">
+          <div class="pile-label">Deck</div>
+          <div class="pile-row">
+            <button id="draw-deck-btn" class="btn btn-draw" disabled>Draw</button>
+            <div id="deck-pile" class="pile"></div>
+          </div>
+        </div>
+        <div class="pile-group">
+          <div class="pile-label">Discard</div>
+          <div class="pile-row">
+            <div id="discard-pile" class="pile"></div>
+            <button id="draw-discard-btn" class="btn btn-draw" disabled>Take</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Player's hand and word zone -->
+    <section id="player-section" class="hand-section">
+      <div id="final-turn-banner" class="final-turn-banner hidden">Final Turn!</div>
+      <div class="player-hand-header">
+        <div class="hand-label">
+          Your Hand
+          <span class="hint">arrange into words</span>
+        </div>
+        <button id="shuffle-hand-btn" class="btn btn-secondary btn-sm" disabled>Shuffle</button>
+      </div>
+      <div id="player-hand" class="hand player-hand"></div>
+      <div id="word-zone"></div>
+    </section>
+
+    <!-- Action buttons -->
+    <section id="action-bar">
+      <button id="next-round-btn" class="btn btn-primary hidden">Next Round</button>
+      <button id="play-again-btn" class="btn btn-primary hidden">Play Again</button>
+    </section>
+
+    <!-- Game history log (newest entry at top) -->
+    <div id="game-log" class="game-log"><div class="log-entry">Loading…</div></div>
+
+  </main>
+
+  <footer id="build-footer">Built <time id="build-stamp"></time></footer>
+
+</div>
+
+<!-- Scripts: load order matters (dependencies before consumers) -->
+<script src="js/cards.js"></script>
+<script src="js/dictionary.js"></script>
+<script src="js/gameEngine.js"></script>
+<script src="js/wordIndex.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/drag.js"></script>
+<script src="js/main.js"></script>
+
+</body>
+</html>
