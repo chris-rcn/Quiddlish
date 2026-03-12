@@ -49,7 +49,7 @@ function logRoundScores(state) {
 
 function doDrawFromDiscard() {
   if (gameState.turn !== 'player' || gameState.turnPhase !== 'draw' || gameState.phase !== 'round') return false;
-  if (!gameState.discard.length) return false;
+  if (!gameState.discard) return false;
   drawFromDiscard(gameState);
   return true;
 }
@@ -285,7 +285,7 @@ function handleDrawDeck() {
 
 function handleDrawDiscard() {
   if (gameState.turn !== 'player' || gameState.turnPhase !== 'draw' || gameState.phase !== 'round') return;
-  if (gameState.discard.length === 0) {
+  if (gameState.discard === null) {
     refresh('Discard pile is empty.');
     return;
   }

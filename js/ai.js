@@ -116,7 +116,7 @@ function chooseBestDiscard(hand, dict, wordIndex) {
 function aiTakeTurn(state, dict, wordIndex) {
   const who = state.turn;
   const hand = [...state[who].hand];
-  const topDiscard = state.discard[state.discard.length - 1] || null;
+  const topDiscard = state.discard;
 
   // 1. Decide draw source
   const drawDiscard = shouldDrawDiscard(hand, topDiscard, dict, wordIndex);
