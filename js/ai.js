@@ -1,6 +1,15 @@
 // Quiddlish AI — rule-based computer player
 
 /**
+ * Agent configuration object controlling AI behaviour.
+ * @typedef {object} Agent
+ * @property {number} mcSims — Monte Carlo samples for draw decision (0 = simple heuristic)
+ */
+
+/** Default agent used by the browser game. */
+const DEFAULT_AGENT = { mcSims: 10 };
+
+/**
  * Find the best partition of hand cards into valid words.
  * @param {Card[]} hand
  * @param {Set<string>} dict  (unused — kept for API compatibility)
@@ -75,21 +84,24 @@ function partitionScore(hand, dict, wordIndex) {
 
 /**
  * Decide whether to draw from the discard pile.
- * Monte Carlo: compare the known value of taking the discard against the
- * expected value of drawing a random card from the remaining deck.
+ * When agent.mcSims > 0: Monte Carlo — compare the known value of taking the
+ * discard against the expected value of drawing a random card from the deck.
+ * When agent.mcSims === 0: simple heuristic — take discard only if it improves
+ * the partition score over the current hand.
  * @param {Card[]} hand
  * @param {Card|null} topDiscard
  * @param {Card[]} deck  — remaining deck (used for MC sampling)
  * @param {Set<string>} dict
  * @param {Map} wordIndex
+ * @param {Agent} agent
  * @returns {boolean}
  */
-function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex) {
+function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex, agent) {
   if (!topDiscard) return false;
 
   const discardScore = partitionScore([...hand, topDiscard], dict, wordIndex);
 
-  const sampleSize = Math.min(deck.length, 10);
+  const sampleSize = Math.min(deck.length, agent.mcSims);
   if (sampleSize === 0) return discardScore > partitionScore(hand, dict, wordIndex);
 
   let deckTotal = 0;
@@ -97,9 +109,7 @@ function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex) {
     const card = deck[Math.floor(Math.random() * deck.length)];
     deckTotal += partitionScore([...hand, card], dict, wordIndex);
   }
-  const avgDeckScore = deckTotal / sampleSize;
-
-  return discardScore > avgDeckScore;
+  return discardScore > deckTotal / sampleSize;
 }
 
 /**
@@ -128,15 +138,16 @@ function chooseBestDiscard(hand, dict, wordIndex) {
  * @param {object} state
  * @param {Set<string>} dict
  * @param {Map} wordIndex — precomputed token-multiset index from buildWordIndex()
+ * @param {Agent} [agent] — defaults to DEFAULT_AGENT
  * @returns {{ drewFrom, discarded, wentOut, words }}
  */
-function aiTakeTurn(state, dict, wordIndex) {
+function aiTakeTurn(state, dict, wordIndex, agent = DEFAULT_AGENT) {
   const who = state.turn;
   const hand = [...state[who].hand];
   const topDiscard = state.discard;
 
   // 1. Decide draw source
-  const drawDiscard = shouldDrawDiscard(hand, topDiscard, state.deck, dict, wordIndex);
+  const drawDiscard = shouldDrawDiscard(hand, topDiscard, state.deck, dict, wordIndex, agent);
   let drewFrom;
   let drawnCard = null;
   if (drawDiscard && topDiscard) {
@@ -185,4 +196,3 @@ function* combinations(arr, k) {
     }
   }
 }
-
