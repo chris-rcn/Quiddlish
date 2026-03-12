@@ -63,7 +63,7 @@ const AGENT_CONFIGS = {
 
 const MAX_TURNS_PER_ROUND = 300; // safety valve
 
-function runRound(state, agent1, agent2, dict, verbose) {
+function runRound(state, agent1, agent2, ai1Name, ai2Name, dict, verbose) {
   const roundStats = { turns: 0, discardDraws: 0, wentOutFirst: null };
 
   while (state.phase === 'round') {
@@ -73,9 +73,10 @@ function runRound(state, agent1, agent2, dict, verbose) {
       break;
     }
 
-    const who    = state.turn;
-    const agent  = who === 'player' ? agent1 : agent2;
-    const result = G.aiTakeTurn(state, dict, _wordIndex, agent);
+    const who       = state.turn;
+    const agent     = who === 'player' ? agent1 : agent2;
+    const agentName = who === 'player' ? ai1Name : ai2Name;
+    const result    = G.aiTakeTurn(state, dict, _wordIndex, agent);
 
     roundStats.turns++;
     if (result.drewFrom === 'discard') roundStats.discardDraws++;
@@ -88,7 +89,7 @@ function runRound(state, agent1, agent2, dict, verbose) {
         ? `WENT OUT [${wordStr}]`
         : `discarded ${result.discarded ? result.discarded.letters : '?'}`;
       process.stdout.write(
-        `  R${state.round} T${roundStats.turns}: ${who.padEnd(8)} drew from ${result.drewFrom.padEnd(7)} → ${action}\n`
+        `  R${state.round} T${roundStats.turns}: ${agentName.padEnd(8)} drew from ${result.drewFrom.padEnd(7)} → ${action}\n`
       );
     }
 
@@ -143,7 +144,7 @@ function _forceEndFinalTurn(state, who, dict) {
 
 // ── Full game runner ──────────────────────────────────────────────────────────
 
-function runGame(agent1, agent2, dict, verbose) {
+function runGame(agent1, agent2, ai1Name, ai2Name, dict, verbose) {
   const state = G.createGameState();
   const gameStats = {
     rounds: [],
@@ -158,10 +159,11 @@ function runGame(agent1, agent2, dict, verbose) {
 
     if (verbose) {
       const n = state.player.hand.length;
-      process.stdout.write(`\nRound ${state.round} (${n} cards each), ${state.turn} goes first\n`);
+      const firstAgent = state.turn === 'player' ? ai1Name : ai2Name;
+      process.stdout.write(`\nRound ${state.round} (${n} cards each), ${firstAgent} goes first\n`);
     }
 
-    const roundStats = runRound(state, agent1, agent2, dict, verbose);
+    const roundStats = runRound(state, agent1, agent2, ai1Name, ai2Name, dict, verbose);
     roundStats.round          = state.round;
     roundStats.playerScore    = state.player.roundScore;
     roundStats.computerScore  = state.computer.roundScore;
@@ -170,10 +172,12 @@ function runGame(agent1, agent2, dict, verbose) {
     gameStats.rounds.push(roundStats);
 
     if (verbose) {
+      const wentOutName = roundStats.wentOutFirst === 'player' ? ai1Name
+        : roundStats.wentOutFirst === 'computer' ? ai2Name : 'neither';
       process.stdout.write(
-        `  → Round ${state.round}: player ${state.player.roundScore > 0 ? '+' : ''}${state.player.roundScore}` +
-        ` | computer ${state.computer.roundScore > 0 ? '+' : ''}${state.computer.roundScore}` +
-        ` | wentOutFirst: ${roundStats.wentOutFirst}\n`
+        `  → Round ${state.round}: ${ai1Name} ${state.player.roundScore > 0 ? '+' : ''}${state.player.roundScore}` +
+        ` | ${ai2Name} ${state.computer.roundScore > 0 ? '+' : ''}${state.computer.roundScore}` +
+        ` | wentOutFirst: ${wentOutName}\n`
       );
     }
 
@@ -188,8 +192,8 @@ function runGame(agent1, agent2, dict, verbose) {
 
   if (verbose) {
     process.stdout.write(
-      `\nGAME OVER: player ${state.player.score} | computer ${state.computer.score}` +
-      ` → ${gameStats.winner.toUpperCase()}\n`
+      `\nGAME OVER: ${ai1Name} ${state.player.score} | ${ai2Name} ${state.computer.score}` +
+      ` → ${gameStats.winner === 'player' ? ai1Name : gameStats.winner === 'computer' ? ai2Name : 'TIE'}\n`
     );
   }
 
@@ -250,33 +254,38 @@ function aggregateStats(results) {
 function printStats(stats, ai1Name, ai2Name) {
   const { n } = stats;
   const w = (s, len) => String(s).padStart(len);
+  const col = Math.max(ai1Name.length, ai2Name.length);
 
   console.log('\n════════════════════════════════════════════════════════');
-  console.log(` Quiddlish Self-Play: ${ai1Name} (player) vs ${ai2Name} (computer)`);
+  console.log(` Quiddlish Self-Play: ${ai1Name} vs ${ai2Name}`);
   console.log(` ${n.toLocaleString()} games`);
   console.log('════════════════════════════════════════════════════════');
   console.log(`\n  Outcomes`);
-  console.log(`    Player wins  : ${w(stats.playerWins, 6)} (${stats.playerWinPct}%)`);
-  console.log(`    Computer wins: ${w(stats.computerWins, 6)} (${stats.computerWinPct}%)`);
-  console.log(`    Ties         : ${w(stats.ties, 6)} (${stats.tiePct}%)`);
+  console.log(`    ${ai1Name.padEnd(col)} wins: ${w(stats.playerWins, 6)} (${stats.playerWinPct}%)`);
+  console.log(`    ${ai2Name.padEnd(col)} wins: ${w(stats.computerWins, 6)} (${stats.computerWinPct}%)`);
+  console.log(`    ${'Ties'.padEnd(col)}      : ${w(stats.ties, 6)} (${stats.tiePct}%)`);
   console.log(`\n  Scores (per game average)`);
-  console.log(`    Player  : ${stats.avgPlayerScore}`);
-  console.log(`    Computer: ${stats.avgComputerScore}`);
+  console.log(`    ${ai1Name.padEnd(col)}: ${stats.avgPlayerScore}`);
+  console.log(`    ${ai2Name.padEnd(col)}: ${stats.avgComputerScore}`);
   console.log(`\n  Turn behaviour`);
   console.log(`    Avg turns/game  : ${stats.avgTurnsPerGame}`);
   console.log(`    Discard draw %  : ${stats.discardDrawPct}%`);
 
+  const a1Out = `${ai1Name}Out%`.padEnd(9);
+  const a2Out = `${ai2Name}Out%`.padEnd(9);
+  const a1Pts = `${ai1Name}Pts`.padEnd(11);
+  const a2Pts = `${ai2Name}Pts`;
   console.log(`\n  Per-round breakdown`);
-  console.log(`  ${'Rnd'.padEnd(4)} ${'Cards'.padEnd(6)} ${'AvgTurns'.padEnd(9)} ${'PlrOut%'.padEnd(9)} ${'CmpOut%'.padEnd(9)} ${'AvgPlrPts'.padEnd(11)} ${'AvgCmpPts'}`);
+  console.log(`  ${'Rnd'.padEnd(4)} ${'Cards'.padEnd(6)} ${'AvgTurns'.padEnd(9)} ${a1Out} ${a2Out} ${a1Pts} ${a2Pts}`);
   for (let i = 0; i < 8; i++) {
     const rb    = stats.byRound[i];
     const cards = i + 3; // round 1 = 3 cards
     if (rb.games === 0) continue;
-    const avgT  = (rb.totalTurns    / rb.games).toFixed(1);
+    const avgT  = (rb.totalTurns     / rb.games).toFixed(1);
     const pOut  = (rb.playerWentOut  / rb.games * 100).toFixed(1);
     const cOut  = (rb.computerWentOut / rb.games * 100).toFixed(1);
-    const avgP  = (rb.playerScore   / rb.games).toFixed(1);
-    const avgC  = (rb.computerScore / rb.games).toFixed(1);
+    const avgP  = (rb.playerScore    / rb.games).toFixed(1);
+    const avgC  = (rb.computerScore  / rb.games).toFixed(1);
     console.log(`  ${String(i+1).padEnd(4)} ${String(cards).padEnd(6)} ${avgT.padEnd(9)} ${(pOut+'%').padEnd(9)} ${(cOut+'%').padEnd(9)} ${avgP.padEnd(11)} ${avgC}`);
   }
   console.log('════════════════════════════════════════════════════════\n');
@@ -322,7 +331,7 @@ function main() {
 
   if (!args.verbose) process.stdout.write('Simulating');
   for (let i = 0; i < args.games; i++) {
-    results.push(runGame(agent1, agent2, dict, args.verbose));
+    results.push(runGame(agent1, agent2, args.ai1, args.ai2, dict, args.verbose));
     if (!args.verbose && (i + 1) % dots === 0) process.stdout.write('.');
   }
   if (!args.verbose) process.stdout.write('\n');
