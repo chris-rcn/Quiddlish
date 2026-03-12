@@ -94,9 +94,8 @@ function renderDeckAndDiscard(state) {
   deckEl.appendChild(deckCard);
 
   discardEl.innerHTML = '';
-  if (state.discard.length > 0) {
-    const top = state.discard[state.discard.length - 1];
-    discardEl.appendChild(makeCardEl(top));
+  if (state.discard !== null) {
+    discardEl.appendChild(makeCardEl(state.discard));
   } else {
     const empty = document.createElement('div');
     empty.className = 'card card-empty';
@@ -186,7 +185,7 @@ function renderButtons(state) {
   // Draw buttons: visible on player's draw phase
   document.getElementById('draw-deck-btn').disabled = !(isPlayerTurn && drawPhase);
   document.getElementById('draw-discard-btn').disabled =
-    !(isPlayerTurn && drawPhase && state.discard.length > 0);
+    !(isPlayerTurn && drawPhase && state.discard !== null);
 
   // Next round / play again
   const nextRoundBtn = document.getElementById('next-round-btn');

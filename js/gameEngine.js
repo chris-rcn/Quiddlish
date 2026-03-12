@@ -11,7 +11,7 @@ function createGameState() {
     phase: 'start',   // 'start' | 'round' | 'roundEnd' | 'gameEnd'
     round: 0,
     deck: [],
-    discard: [],      // top of discard = last element
+    discard: null,
     player: {
       hand: [],
       words: [],      // Card[][] — groups committed as words
@@ -43,7 +43,7 @@ function createGameState() {
 function dealRound(state, freshDeck) {
   state.round += 1;
   state.deck = freshDeck;
-  state.discard = [];
+  state.discard = null;
   state.outBy = null;
   state.finalTurnDone = false;
   state.phase = 'round';
@@ -73,8 +73,8 @@ function dealRound(state, freshDeck) {
     state.computer.hand.push(state.deck.pop());
   }
 
-  // Flip one card to start the discard pile
-  state.discard.push(state.deck.pop());
+  // Flip one card to start the discard
+  state.discard = state.deck.pop();
 }
 
 /** Reshuffle the deck (called after every draw per game rules). */
@@ -92,10 +92,11 @@ function drawFromDeck(state) {
   return card;
 }
 
-/** Draw top card from discard pile into the active player's hand. */
+/** Draw the discard card into the active player's hand. */
 function drawFromDiscard(state) {
-  if (state.discard.length === 0) return null;
-  const card = state.discard.pop();
+  if (state.discard === null) return null;
+  const card = state.discard;
+  state.discard = null;
   state[state.turn].hand.push(card);
   reshuffle(state);
   state.turnPhase = 'discard';
@@ -113,7 +114,7 @@ function discardCard(state, cardId) {
   const idx = player.hand.findIndex(c => c.id === cardId);
   if (idx === -1) return null;
   const [card] = player.hand.splice(idx, 1);
-  state.discard.push(card);
+  state.discard = card;
   return card;
 }
 
