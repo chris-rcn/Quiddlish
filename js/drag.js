@@ -16,6 +16,42 @@ let dragState = null; // { cardId, sourceType: 'hand'|'word', wordRowIndex? }
  * @param {function} opts.onWordToWord(cardId, fromRow, toRow) — card moved between word rows
  * @param {function} opts.onHandReorderById(dragId, targetId) — swap positions in hand
  */
+/**
+ * Find the card to insert before when dropping at (clientX, clientY) in the hand.
+ * Handles wrapped rows: only considers cards on the same visual row as the drop,
+ * then falls back to the first card of the next row, then null (append to end).
+ * @param {number} clientX
+ * @param {number} clientY
+ * @param {string|null} excludeCardId — the dragged card's id (excluded from targets)
+ * @returns {Element|null}
+ */
+function findHandInsertPosition(clientX, clientY, excludeCardId) {
+  const all = [...document.querySelectorAll('#player-hand .card')];
+  const cards = excludeCardId ? all.filter(c => c.dataset.cardId !== excludeCardId) : all;
+  if (cards.length === 0) return null;
+
+  // Cards whose Y-range overlaps the drop point (same visual row)
+  const sameRow = cards.filter(c => {
+    const r = c.getBoundingClientRect();
+    return clientY >= r.top - 4 && clientY <= r.bottom + 4;
+  });
+
+  if (sameRow.length > 0) {
+    // First card in this row whose centre is right of the drop X
+    const hit = sameRow.find(c => {
+      const r = c.getBoundingClientRect();
+      return clientX < r.left + r.width / 2;
+    });
+    if (hit) return hit;
+    // Drop is past the last card in this row → first card of the next row
+    const rowBottom = Math.max(...sameRow.map(c => c.getBoundingClientRect().bottom));
+    return cards.find(c => c.getBoundingClientRect().top > rowBottom + 2) || null;
+  }
+
+  // Drop is between rows: first card below the drop point
+  return cards.find(c => c.getBoundingClientRect().top > clientY) || null;
+}
+
 function initDragAndDrop(opts) {
   // ── hand card drag-start ──────────────────────────────────────────────────
   document.querySelectorAll('#player-hand .card').forEach(el => {
@@ -46,12 +82,17 @@ function initDragAndDrop(opts) {
     el.addEventListener('drop', e => {
       e.preventDefault();
       el.classList.remove('drag-over');
-      if (dragState && dragState.sourceType === 'hand' && dragState.cardId !== el.dataset.cardId) {
-        opts.onHandReorderById(dragState.cardId, el.dataset.cardId);
-      } else if (dragState && dragState.sourceType === 'word') {
-        opts.onWordToHandInsertBefore(dragState.cardId, dragState.wordRowIndex, el.dataset.cardId);
-      } else if (dragState && dragState.sourceType === 'discard') {
-        opts.onDrawFromDiscardToHandBefore(el.dataset.cardId);
+      if (!dragState) return;
+      const ins = findHandInsertPosition(e.clientX, e.clientY, dragState.sourceType === 'hand' ? dragState.cardId : null);
+      if (dragState.sourceType === 'hand' && dragState.cardId !== el.dataset.cardId) {
+        if (ins) opts.onHandReorderById(dragState.cardId, ins.dataset.cardId);
+        else opts.onHandMoveToEnd(dragState.cardId);
+      } else if (dragState.sourceType === 'word') {
+        if (ins) opts.onWordToHandInsertBefore(dragState.cardId, dragState.wordRowIndex, ins.dataset.cardId);
+        else opts.onWordToHand(dragState.cardId, dragState.wordRowIndex);
+      } else if (dragState.sourceType === 'discard') {
+        if (ins) opts.onDrawFromDiscardToHandBefore(ins.dataset.cardId);
+        else opts.onDrawFromDiscardToHand();
       }
       dragState = null;
     });
@@ -61,20 +102,26 @@ function initDragAndDrop(opts) {
   const handEl = document.getElementById('player-hand');
   if (handEl) {
     handEl.addEventListener('dragover', e => {
-      if (dragState && (dragState.sourceType === 'word' || dragState.sourceType === 'discard')) {
+      if (dragState) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
       }
     });
     handEl.addEventListener('drop', e => {
       e.preventDefault();
-      if (dragState && dragState.sourceType === 'word') {
-        opts.onWordToHand(dragState.cardId, dragState.wordRowIndex);
-        dragState = null;
-      } else if (dragState && dragState.sourceType === 'discard') {
-        opts.onDrawFromDiscardToHand();
-        dragState = null;
+      if (!dragState) return;
+      const ins = findHandInsertPosition(e.clientX, e.clientY, dragState.sourceType === 'hand' ? dragState.cardId : null);
+      if (dragState.sourceType === 'hand') {
+        if (ins) opts.onHandReorderById(dragState.cardId, ins.dataset.cardId);
+        else opts.onHandMoveToEnd(dragState.cardId);
+      } else if (dragState.sourceType === 'word') {
+        if (ins) opts.onWordToHandInsertBefore(dragState.cardId, dragState.wordRowIndex, ins.dataset.cardId);
+        else opts.onWordToHand(dragState.cardId, dragState.wordRowIndex);
+      } else if (dragState.sourceType === 'discard') {
+        if (ins) opts.onDrawFromDiscardToHandBefore(ins.dataset.cardId);
+        else opts.onDrawFromDiscardToHand();
       }
+      dragState = null;
     });
   }
 
@@ -331,19 +378,9 @@ function initTouchDragAndDrop(opts) {
             touchOpts.onCardToWord(cardId, target.rowIndex);
           }
         } else if (target.type === 'hand-card' || target.type === 'hand') {
-          // Use centre-based detection so the transition point is the middle of
-          // each card, not its edge.  This handles both on-card and gap drops.
-          const handCards = [...document.querySelectorAll('#player-hand .card')]
-            .filter(el => el.dataset.cardId !== cardId);
-          const nearest = handCards.find(el => {
-            const r = el.getBoundingClientRect();
-            return touch.clientX < r.left + r.width / 2;
-          });
-          if (nearest) {
-            touchOpts.onHandReorderById(cardId, nearest.dataset.cardId);
-          } else {
-            touchOpts.onHandMoveToEnd(cardId);
-          }
+          const ins = findHandInsertPosition(touch.clientX, touch.clientY, cardId);
+          if (ins) touchOpts.onHandReorderById(cardId, ins.dataset.cardId);
+          else touchOpts.onHandMoveToEnd(cardId);
         }
       } else if (sourceType === 'word') {
         if (target.type === 'discard') {
@@ -372,17 +409,9 @@ function initTouchDragAndDrop(opts) {
           // Dropped on same row's background → move to end
           touchOpts.onWordMoveToEnd(cardId, wordRowIndex);
         } else if (target.type === 'hand-card' || target.type === 'hand') {
-          // Centre-based detection in hand for position-aware insert.
-          const handCards = [...document.querySelectorAll('#player-hand .card')];
-          const nearest = handCards.find(el => {
-            const r = el.getBoundingClientRect();
-            return touch.clientX < r.left + r.width / 2;
-          });
-          if (nearest) {
-            touchOpts.onWordToHandInsertBefore(cardId, wordRowIndex, nearest.dataset.cardId);
-          } else {
-            touchOpts.onWordToHand(cardId, wordRowIndex);
-          }
+          const ins = findHandInsertPosition(touch.clientX, touch.clientY, null);
+          if (ins) touchOpts.onWordToHandInsertBefore(cardId, wordRowIndex, ins.dataset.cardId);
+          else touchOpts.onWordToHand(cardId, wordRowIndex);
         }
       } else if (sourceType === 'discard') {
         if (target.type === 'word-card' || target.type === 'word-row') {
@@ -399,16 +428,9 @@ function initTouchDragAndDrop(opts) {
             touchOpts.onDrawFromDiscardToWord(target.rowIndex);
           }
         } else if (target.type === 'hand-card' || target.type === 'hand') {
-          const handCards = [...document.querySelectorAll('#player-hand .card')];
-          const nearest = handCards.find(el => {
-            const r = el.getBoundingClientRect();
-            return touch.clientX < r.left + r.width / 2;
-          });
-          if (nearest) {
-            touchOpts.onDrawFromDiscardToHandBefore(nearest.dataset.cardId);
-          } else {
-            touchOpts.onDrawFromDiscardToHand();
-          }
+          const ins = findHandInsertPosition(touch.clientX, touch.clientY, null);
+          if (ins) touchOpts.onDrawFromDiscardToHandBefore(ins.dataset.cardId);
+          else touchOpts.onDrawFromDiscardToHand();
         }
       }
     });
