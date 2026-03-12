@@ -64,7 +64,11 @@ const AGENT_CONFIGS = {
 const MAX_TURNS_PER_ROUND = 300; // safety valve
 
 function runRound(state, agent1, agent2, ai1Name, ai2Name, dict, verbose) {
-  const roundStats = { turns: 0, discardDraws: 0, wentOutFirst: null };
+  const roundStats = {
+    turns: 0, discardDraws: 0, wentOutFirst: null,
+    ai1TurnMs: 0, ai1MaxMs: 0, ai1Turns: 0,
+    ai2TurnMs: 0, ai2MaxMs: 0, ai2Turns: 0,
+  };
 
   while (state.phase === 'round') {
     if (roundStats.turns >= MAX_TURNS_PER_ROUND) {
@@ -76,10 +80,21 @@ function runRound(state, agent1, agent2, ai1Name, ai2Name, dict, verbose) {
     const who       = state.turn;
     const agent     = who === 'player' ? agent1 : agent2;
     const agentName = who === 'player' ? ai1Name : ai2Name;
+    const t0        = Date.now();
     const result    = G.aiTakeTurn(state, dict, _wordIndex, agent);
+    const elapsed   = Date.now() - t0;
 
     roundStats.turns++;
     if (result.drewFrom === 'discard') roundStats.discardDraws++;
+    if (who === 'player') {
+      roundStats.ai1TurnMs += elapsed;
+      roundStats.ai1Turns++;
+      if (elapsed > roundStats.ai1MaxMs) roundStats.ai1MaxMs = elapsed;
+    } else {
+      roundStats.ai2TurnMs += elapsed;
+      roundStats.ai2Turns++;
+      if (elapsed > roundStats.ai2MaxMs) roundStats.ai2MaxMs = elapsed;
+    }
 
     if (verbose) {
       const wordStr = result.wentOut
@@ -207,6 +222,8 @@ function aggregateStats(results) {
   let playerWins = 0, computerWins = 0, ties = 0;
   let totalPlayerScore = 0, totalComputerScore = 0;
   let totalTurns = 0, totalDiscardDraws = 0;
+  let ai1TotalMs = 0, ai1TotalTurns = 0, ai1MaxMs = 0;
+  let ai2TotalMs = 0, ai2TotalTurns = 0, ai2MaxMs = 0;
 
   // Per-round-number stats (round 1–8)
   const byRound = Array.from({ length: 8 }, () => ({
@@ -223,13 +240,19 @@ function aggregateStats(results) {
     totalComputerScore += g.computerFinalScore;
 
     for (const r of g.rounds) {
-      totalTurns       += r.turns;
+      totalTurns        += r.turns;
       totalDiscardDraws += r.discardDraws;
+      ai1TotalMs        += r.ai1TurnMs;
+      ai1TotalTurns     += r.ai1Turns;
+      ai2TotalMs        += r.ai2TurnMs;
+      ai2TotalTurns     += r.ai2Turns;
+      if (r.ai1MaxMs > ai1MaxMs) ai1MaxMs = r.ai1MaxMs;
+      if (r.ai2MaxMs > ai2MaxMs) ai2MaxMs = r.ai2MaxMs;
 
       const rb = byRound[r.round - 1];
       rb.games++;
-      rb.totalTurns   += r.turns;
-      rb.playerScore  += r.playerScore;
+      rb.totalTurns    += r.turns;
+      rb.playerScore   += r.playerScore;
       rb.computerScore += r.computerScore;
       if      (r.wentOutFirst === 'player')   rb.playerWentOut++;
       else if (r.wentOutFirst === 'computer') rb.computerWentOut++;
@@ -247,6 +270,10 @@ function aggregateStats(results) {
     avgComputerScore: (totalComputerScore / n).toFixed(1),
     avgTurnsPerGame:  (totalTurns         / n).toFixed(1),
     discardDrawPct:   (totalDiscardDraws  / totalTurns * 100).toFixed(1),
+    ai1AvgMs: ai1TotalTurns ? (ai1TotalMs / ai1TotalTurns).toFixed(2) : '0.00',
+    ai1MaxMs,
+    ai2AvgMs: ai2TotalTurns ? (ai2TotalMs / ai2TotalTurns).toFixed(2) : '0.00',
+    ai2MaxMs,
     byRound,
   };
 }
@@ -270,6 +297,9 @@ function printStats(stats, ai1Name, ai2Name) {
   console.log(`\n  Turn behaviour`);
   console.log(`    Avg turns/game  : ${stats.avgTurnsPerGame}`);
   console.log(`    Discard draw %  : ${stats.discardDrawPct}%`);
+  console.log(`\n  Time per turn (ms)`);
+  console.log(`    ${ai1Name.padEnd(col)}  avg ${stats.ai1AvgMs}  max ${stats.ai1MaxMs}`);
+  console.log(`    ${ai2Name.padEnd(col)}  avg ${stats.ai2AvgMs}  max ${stats.ai2MaxMs}`);
 
   const a1Out = `${ai1Name}Out%`.padEnd(9);
   const a2Out = `${ai2Name}Out%`.padEnd(9);
