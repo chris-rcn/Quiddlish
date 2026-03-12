@@ -39,6 +39,7 @@ function logRoundScores(state) {
     if (unusedPoints > 0) parts.push(`unused −${unusedPoints}`);
     renderMessage(parts.join(', '));
   }
+  if (state.phase === 'gameEnd') renderRoundResult(state);
 }
 
 // ─── Draw-from-discard helpers (used by drag callbacks) ──────────────────────
