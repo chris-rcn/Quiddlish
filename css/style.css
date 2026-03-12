@@ -19,7 +19,7 @@
   --card-back: #3d5070;
   --shadow:    rgba(0,0,0,0.4);
   --radius:    8px;
-  --card-w:    54px;
+  --card-w:    50px;
   --card-h:    60px;
 }
 
@@ -356,9 +356,9 @@ body {
 
 .word-row-cards {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
   gap: 6px;
-  max-width: calc(5 * var(--card-w) + 4 * 6px);
 }
 
 .word-badge {
