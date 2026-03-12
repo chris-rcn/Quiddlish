@@ -114,7 +114,18 @@ function initDragAndDrop(opts) {
         if (dragState.wordRowIndex !== targetRow) {
           opts.onWordToWordInsertBefore(dragState.cardId, dragState.wordRowIndex, targetRow, el.dataset.cardId);
         } else {
-          opts.onWordReorderById(dragState.cardId, targetRow, el.dataset.cardId);
+          // Midpoint scan: insert before the first card whose centre is to the right of the drop X
+          const rowCards = [...el.closest('.word-row-cards').querySelectorAll('.card')]
+            .filter(c => c.dataset.cardId !== dragState.cardId);
+          const nearest = rowCards.find(c => {
+            const r = c.getBoundingClientRect();
+            return e.clientX < r.left + r.width / 2;
+          });
+          if (nearest) {
+            opts.onWordReorderById(dragState.cardId, targetRow, nearest.dataset.cardId);
+          } else {
+            opts.onWordMoveToEnd(dragState.cardId, targetRow);
+          }
         }
       } else if (dragState.sourceType === 'discard') {
         opts.onDrawFromDiscardToWordBefore(targetRow, el.dataset.cardId);
@@ -341,8 +352,19 @@ function initTouchDragAndDrop(opts) {
           // Dropped onto a specific card in another row → insert before it
           touchOpts.onWordToWordInsertBefore(cardId, wordRowIndex, target.rowIndex, target.cardId);
         } else if (target.type === 'word-card' && target.rowIndex === wordRowIndex) {
-          // Dropped onto a card in the same row → reorder
-          touchOpts.onWordReorderById(cardId, wordRowIndex, target.cardId);
+          // Midpoint scan: insert before the first card whose centre is to the right of the drop X
+          const rowCards = [...document.querySelectorAll(
+            `#word-zone .word-row[data-row-index="${wordRowIndex}"] .card`
+          )].filter(el => el.dataset.cardId !== cardId);
+          const nearest = rowCards.find(el => {
+            const r = el.getBoundingClientRect();
+            return touch.clientX < r.left + r.width / 2;
+          });
+          if (nearest) {
+            touchOpts.onWordReorderById(cardId, wordRowIndex, nearest.dataset.cardId);
+          } else {
+            touchOpts.onWordMoveToEnd(cardId, wordRowIndex);
+          }
         } else if (target.type === 'word-row' && target.rowIndex !== wordRowIndex) {
           // Dropped on a row's background → append to end
           touchOpts.onWordToWord(cardId, wordRowIndex, target.rowIndex);
