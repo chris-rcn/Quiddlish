@@ -5,11 +5,11 @@
 // Runs N full computer-vs-computer games and prints statistics.
 //
 // Usage:
-//   node selfplay.js [--games N] [--verbose] [--ai1 default] [--ai2 default]
+//   node selfplay.js --ai1 <agent> --ai2 <agent> [--games N] [--verbose]
 //
+// --ai1 / --ai2 Agent config names (required) — see AGENT_CONFIGS below.
 // --games N     Number of games to simulate (default: 500)
 // --verbose     Print every turn
-// --ai1 / --ai2 Agent config names — see AGENT_CONFIGS below.
 
 const fs   = require('fs');
 const path = require('path');
@@ -51,13 +51,12 @@ function loadDictionary() {
 let _wordIndex = null;
 
 const AGENT_CONFIGS = {
-  default: { mcSims: 10 },
-  old:     { mcSims: 0  },
-  mc1:     { mcSims: 1  },
-  mc2:     { mcSims: 2  },
-  mc5:     { mcSims: 5  },
-  mc10:    { mcSims: 10 },
-  mc25:    { mcSims: 25 },
+  old:  { mcSims: 0  },
+  mc1:  { mcSims: 1  },
+  mc2:  { mcSims: 2  },
+  mc5:  { mcSims: 5  },
+  mc10: { mcSims: 10 },
+  mc25: { mcSims: 25 },
 };
 
 // ── Round runner ──────────────────────────────────────────────────────────────
@@ -286,7 +285,7 @@ function printStats(stats, ai1Name, ai2Name) {
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-  const args = { games: 500, verbose: false, ai1: 'default', ai2: 'default' };
+  const args = { games: 500, verbose: false, ai1: null, ai2: null };
   for (let i = 0; i < argv.length; i++) {
     if      (argv[i] === '--games'   && argv[i+1]) { args.games   = parseInt(argv[++i], 10); }
     else if (argv[i] === '--verbose' || argv[i] === '-v') { args.verbose = true; }
@@ -299,8 +298,10 @@ function parseArgs(argv) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
 
-  if (!AGENT_CONFIGS[args.ai1]) { console.error(`Unknown agent: ${args.ai1}. Available: ${Object.keys(AGENT_CONFIGS).join(', ')}`); process.exit(1); }
-  if (!AGENT_CONFIGS[args.ai2]) { console.error(`Unknown agent: ${args.ai2}. Available: ${Object.keys(AGENT_CONFIGS).join(', ')}`); process.exit(1); }
+  const available = Object.keys(AGENT_CONFIGS).join(', ');
+  if (!args.ai1 || !args.ai2) { console.error(`Usage: node selfplay.js --games N --ai1 <agent> --ai2 <agent>\nAvailable agents: ${available}`); process.exit(1); }
+  if (!AGENT_CONFIGS[args.ai1]) { console.error(`Unknown agent: ${args.ai1}. Available: ${available}`); process.exit(1); }
+  if (!AGENT_CONFIGS[args.ai2]) { console.error(`Unknown agent: ${args.ai2}. Available: ${available}`); process.exit(1); }
 
   const agent1 = AGENT_CONFIGS[args.ai1];
   const agent2 = AGENT_CONFIGS[args.ai2];
