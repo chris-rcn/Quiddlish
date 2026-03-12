@@ -121,9 +121,11 @@ function aiTakeTurn(state, dict, wordIndex) {
   // 1. Decide draw source
   const drawDiscard = shouldDrawDiscard(hand, topDiscard, dict, wordIndex);
   let drewFrom;
+  let drawnCard = null;
   if (drawDiscard && topDiscard) {
     drawFromDiscard(state);
     drewFrom = 'discard';
+    drawnCard = state[who].hand[state[who].hand.length - 1];
   } else {
     drawFromDeck(state);
     drewFrom = 'deck';
@@ -141,7 +143,7 @@ function aiTakeTurn(state, dict, wordIndex) {
       discardCard(state, discardCandidate.id);
       const result = goOut(state, full, dict);
       if (result.success) {
-        return { drewFrom, discarded: discardCandidate, wentOut: true, words: full, isFinalTurn: result.isFinalTurn };
+        return { drewFrom, drawnCard, discarded: discardCandidate, wentOut: true, words: full, isFinalTurn: result.isFinalTurn };
       }
     }
   }
@@ -151,7 +153,7 @@ function aiTakeTurn(state, dict, wordIndex) {
   const cardToDiscard = chooseBestDiscard(newHand, dict, wordIndex);
   discardCard(state, cardToDiscard.id);
 
-  return { drewFrom, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
+  return { drewFrom, drawnCard, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
 }
 
 // ─── Combinatorics helpers ───────────────────────────────────────────────────

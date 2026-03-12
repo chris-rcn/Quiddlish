@@ -11,10 +11,13 @@ let wordIndex = null;
 // Word-zone cards are removed from player.hand when dragged in, and restored when dragged back.
 let playerWordGroups = [];
 
+// ID of a computer card drawn from the discard pile — shown face-up until player draws.
+let computerDiscardDrawnCardId = null;
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function refresh(message) {
-  renderAll(gameState, playerWordGroups, dict, message);
+  renderAll(gameState, playerWordGroups, dict, message, computerDiscardDrawnCardId);
   // Re-attach drag listeners; skip if player already committed their words
   if (gameState.phase === 'round' && gameState.outBy !== 'player') {
     attachDragListeners();
@@ -47,6 +50,7 @@ function logRoundScores(state) {
 function doDrawFromDiscard() {
   if (gameState.turn !== 'player' || gameState.turnPhase !== 'draw' || gameState.phase !== 'round') return false;
   if (!gameState.discard.length) return false;
+  computerDiscardDrawnCardId = null;
   drawFromDiscard(gameState);
   return true;
 }
@@ -273,6 +277,7 @@ function handleDrawDeck() {
     refresh('The deck is empty — you must draw from the discard pile.');
     return;
   }
+  computerDiscardDrawnCardId = null;
   drawFromDeck(gameState);
   const isFinal = gameState.outBy !== null;
   refresh(isFinal
@@ -286,6 +291,7 @@ function handleDrawDiscard() {
     refresh('Discard pile is empty.');
     return;
   }
+  computerDiscardDrawnCardId = null;
   drawFromDiscard(gameState);
   const isFinal = gameState.outBy !== null;
   refresh(isFinal
@@ -353,6 +359,7 @@ function runComputerTurn() {
 
   const drewMsg = result.drewFrom === 'discard' ? 'drew from discard' : 'drew from deck';
   const discMsg = result.discarded ? `and discarded ${result.discarded.letters}` : '';
+  computerDiscardDrawnCardId = result.drawnCard ? result.drawnCard.id : null;
   advanceTurn(gameState);
   refresh(`Computer ${drewMsg} ${discMsg}. Your turn — draw a card.`);
 }
@@ -406,6 +413,7 @@ function startNextRound() {
   dealRound(gameState, freshDeck);
   const slotCount = Math.floor(cardsForRound(gameState.round) / 3);
   playerWordGroups = Array.from({ length: Math.max(1, slotCount) }, () => []);
+  computerDiscardDrawnCardId = null;
 
   const firstMsg = gameState.turn === 'player'
     ? 'You go first — draw a card.'
