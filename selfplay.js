@@ -164,7 +164,19 @@ function _forceEndFinalTurn(state, who, dict) {
 
 // ── Full game runner ──────────────────────────────────────────────────────────
 
-function runGame(agent1, agent2, ai1Name, ai2Name, dict, verbose) {
+/**
+ * Run a full game.
+ * @param {object}   agent1
+ * @param {object}   agent2
+ * @param {string}   ai1Name
+ * @param {string}   ai2Name
+ * @param {Set}      dict
+ * @param {boolean}  verbose
+ * @param {Array}    [deckSequence]       Pre-generated decks, one per round.
+ *                                        When provided, createDeck() is not called.
+ * @param {string}   [round1FirstPlayer]  Force round-1 first player ('player'|'computer').
+ */
+function runGame(agent1, agent2, ai1Name, ai2Name, dict, verbose, deckSequence, round1FirstPlayer) {
   const state = G.createGameState();
   const gameStats = {
     rounds: [],
@@ -172,10 +184,17 @@ function runGame(agent1, agent2, ai1Name, ai2Name, dict, verbose) {
     computerFinalScore: 0,
     winner: null,
   };
+  let deckIndex = 0;
 
   while (state.phase !== 'gameEnd') {
-    const freshDeck = G.createDeck();
+    const freshDeck = deckSequence ? deckSequence[deckIndex++] : G.createDeck();
     G.dealRound(state, freshDeck);
+
+    // Override the random first-player choice when a fixed value is requested
+    if (state.round === 1 && round1FirstPlayer) {
+      state.roundFirstPlayer = round1FirstPlayer;
+      state.turn = round1FirstPlayer;
+    }
 
     if (verbose) {
       const n = state.player.hand.length;
@@ -220,9 +239,71 @@ function runGame(agent1, agent2, ai1Name, ai2Name, dict, verbose) {
   return gameStats;
 }
 
+// ── Fair-selfplay pair runner ─────────────────────────────────────────────────
+
+/**
+ * Swap player/computer fields in a game result so that the result is expressed
+ * from the perspective where agent1='player' and agent2='computer', regardless
+ * of which physical seat each agent occupied.
+ */
+function swapGameResult(g) {
+  return {
+    rounds: g.rounds.map(r => ({
+      ...r,
+      playerScore:   r.computerScore,
+      computerScore: r.playerScore,
+      playerWords:   r.computerWords,
+      computerWords: r.playerWords,
+      wentOutFirst:
+        r.wentOutFirst === 'player'   ? 'computer' :
+        r.wentOutFirst === 'computer' ? 'player'   : null,
+      ai1TurnMs: r.ai2TurnMs,
+      ai1MaxMs:  r.ai2MaxMs,
+      ai1Turns:  r.ai2Turns,
+      ai2TurnMs: r.ai1TurnMs,
+      ai2MaxMs:  r.ai1MaxMs,
+      ai2Turns:  r.ai1Turns,
+    })),
+    playerFinalScore:   g.computerFinalScore,
+    computerFinalScore: g.playerFinalScore,
+    winner:
+      g.winner === 'player'   ? 'computer' :
+      g.winner === 'computer' ? 'player'   : 'tie',
+  };
+}
+
+/**
+ * Run a matched pair of games using the same deck sequence.
+ *
+ * Game A: agent1 as 'player', agent2 as 'computer', agent1 goes first in round 1.
+ * Game B: agent2 as 'player', agent1 as 'computer', agent2 goes first in round 1
+ *         (achieved by setting round1FirstPlayer='player' with swapped agents).
+ *
+ * Game B's result is normalised back to agent1/agent2 perspective via swapGameResult,
+ * so both results can be fed directly into aggregateStats.
+ *
+ * @returns {[object, object]}  [gameAStats, gameBStatsNormalised]
+ */
+function runGamePair(agent1, agent2, ai1Name, ai2Name, dict, verbose) {
+  // Pre-generate one deck per round (8 rounds per game).
+  // dealRound mutates decks by popping cards, so each game gets a shallow clone
+  // of each deck array (card objects themselves are not mutated).
+  const decks = Array.from({ length: 8 }, () => G.createDeck());
+  const cloneDecks = () => decks.map(d => [...d]);
+
+  if (verbose) process.stdout.write('\n── Game A (deck-normal) ─────────────────────────\n');
+  const gameA = runGame(agent1, agent2, ai1Name, ai2Name, dict, verbose, cloneDecks(), 'player');
+
+  if (verbose) process.stdout.write('\n── Game B (positions swapped) ───────────────────\n');
+  const gameBRaw = runGame(agent2, agent1, ai2Name, ai1Name, dict, verbose, cloneDecks(), 'player');
+  const gameB    = swapGameResult(gameBRaw);
+
+  return [gameA, gameB];
+}
+
 // ── Statistics aggregator ─────────────────────────────────────────────────────
 
-function aggregateStats(results) {
+function aggregateStats(results, pairs) {
   const n = results.length;
   let playerWins = 0, computerWins = 0, ties = 0;
   let totalPlayerScore = 0, totalComputerScore = 0;
@@ -271,7 +352,7 @@ function aggregateStats(results) {
   }
 
   return {
-    n,
+    n, pairs: pairs || n,
     playerWins, computerWins, ties,
     playerWinPct:   (playerWins   / n * 100).toFixed(1),
     computerWinPct: (computerWins / n * 100).toFixed(1),
@@ -295,7 +376,7 @@ function printStats(stats, ai1Name, ai2Name) {
 
   console.log('\n════════════════════════════════════════════════════════');
   console.log(` Quiddlish Self-Play: ${ai1Name} vs ${ai2Name}`);
-  console.log(` ${n.toLocaleString()} games`);
+  console.log(` ${stats.pairs.toLocaleString()} deck shuffles × 2 positions = ${n.toLocaleString()} games`);
   console.log('════════════════════════════════════════════════════════');
   console.log(`\n  Outcomes`);
   console.log(`    ${ai1Name.padEnd(col)} wins: ${w(stats.playerWins, 6)} (${stats.playerWinPct}%)`);
@@ -372,12 +453,13 @@ function main() {
 
   if (!args.verbose) process.stdout.write('Simulating');
   for (let i = 0; i < args.games; i++) {
-    results.push(runGame(agent1, agent2, args.ai1, args.ai2, dict, args.verbose));
+    const [gameA, gameB] = runGamePair(agent1, agent2, args.ai1, args.ai2, dict, args.verbose);
+    results.push(gameA, gameB);
     if (!args.verbose && (i + 1) % dots === 0) process.stdout.write('.');
   }
   if (!args.verbose) process.stdout.write('\n');
 
-  printStats(aggregateStats(results), args.ai1, args.ai2);
+  printStats(aggregateStats(results, args.games), args.ai1, args.ai2);
 }
 
 main();
