@@ -9,8 +9,7 @@
 //
 // --games N     Number of games to simulate (default: 500)
 // --verbose     Print every turn
-// --ai1 / --ai2 AI variant names (currently only "default" is defined)
-//               Add new variants in the AI_VARIANTS map below.
+// --ai1 / --ai2 Agent config names — see AGENT_CONFIGS below.
 
 const fs   = require('fs');
 const path = require('path');
@@ -41,117 +40,31 @@ function loadDictionary() {
   return dict;
 }
 
-// ── AI variants ───────────────────────────────────────────────────────────────
-// Each variant is a function: (state, who, dict) → { drewFrom, discarded, wentOut, words, isFinalTurn }
-// `who` is 'player' | 'computer'.  state.turn is already set to `who`.
+// ── Agent configs ─────────────────────────────────────────────────────────────
+// Each entry is an Agent object passed to G.aiTakeTurn(state, dict, wordIndex, agent).
+// Agent parameters:
+//   mcSims {number} — MC samples for the draw decision (0 = simple heuristic)
 //
-// Add new strategies here to compare them against each other.
+// Add new configs here to compare strategies against each other.
 
-// Built once after dict loads; shared across all games and variants
+// Built once after dict loads; shared across all games
 let _wordIndex = null;
 
-// Original heuristic: take discard only if it strictly improves the partition
-// vs. the current hand (ignores the distribution of deck draws).
-function _shouldDrawDiscardOld(hand, topDiscard, dict, wordIndex) {
-  if (!topDiscard) return false;
-  const without   = G.findPartialPartition(hand, dict, wordIndex);
-  const withCard  = G.findPartialPartition([...hand, topDiscard], dict, wordIndex);
-  const gainedPts = withCard.words.flat().reduce((s, c) => s + c.points, 0)
-    - without.words.flat().reduce((s, c) => s + c.points, 0);
-  return gainedPts > 0;
-}
-
-function _aiTakeTurnOld(state, dict, wordIndex) {
-  const who = state.turn;
-  const hand = [...state[who].hand];
-  const topDiscard = state.discard;
-  const drawDiscard = _shouldDrawDiscardOld(hand, topDiscard, dict, wordIndex);
-  let drewFrom, drawnCard = null;
-  if (drawDiscard && topDiscard) {
-    G.drawFromDiscard(state); drewFrom = 'discard';
-    drawnCard = state[who].hand[state[who].hand.length - 1];
-  } else {
-    G.drawFromDeck(state); drewFrom = 'deck';
-  }
-  const newHand = state[who].hand;
-  const byValueAsc = [...newHand].sort((a, b) => a.points - b.points);
-  for (const discardCandidate of byValueAsc) {
-    const remaining = newHand.filter(c => c.id !== discardCandidate.id);
-    const full = G.findBestWordPartition(remaining, dict, wordIndex);
-    if (full) {
-      G.discardCard(state, discardCandidate.id);
-      const result = G.goOut(state, full, dict);
-      if (result.success)
-        return { drewFrom, drawnCard, discarded: discardCandidate, wentOut: true, words: full, isFinalTurn: result.isFinalTurn };
-    }
-  }
-  const partial = G.findPartialPartition(newHand, dict, wordIndex);
-  const cardToDiscard = G.chooseBestDiscard(newHand, dict, wordIndex);
-  G.discardCard(state, cardToDiscard.id);
-  return { drewFrom, drawnCard, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
-}
-
-// Factory: same as aiTakeTurn but with a fixed MC sample size.
-function _makeMcAi(samples) {
-  return function(state, who, dict) {
-    const hand = [...state[who].hand];
-    const topDiscard = state.discard;
-    // MC draw decision with fixed sample count
-    let drawDiscard = false;
-    if (topDiscard) {
-      const discardScore = G.partitionScore([...hand, topDiscard], dict, _wordIndex);
-      const n = Math.min(state.deck.length, samples);
-      if (n === 0) {
-        drawDiscard = discardScore > G.partitionScore(hand, dict, _wordIndex);
-      } else {
-        let total = 0;
-        for (let i = 0; i < n; i++) {
-          const card = state.deck[Math.floor(Math.random() * state.deck.length)];
-          total += G.partitionScore([...hand, card], dict, _wordIndex);
-        }
-        drawDiscard = discardScore > total / n;
-      }
-    }
-    let drewFrom, drawnCard = null;
-    if (drawDiscard && topDiscard) {
-      G.drawFromDiscard(state); drewFrom = 'discard';
-      drawnCard = state[who].hand[state[who].hand.length - 1];
-    } else {
-      G.drawFromDeck(state); drewFrom = 'deck';
-    }
-    const newHand = state[who].hand;
-    const byValueAsc = [...newHand].sort((a, b) => a.points - b.points);
-    for (const discardCandidate of byValueAsc) {
-      const remaining = newHand.filter(c => c.id !== discardCandidate.id);
-      const full = G.findBestWordPartition(remaining, dict, _wordIndex);
-      if (full) {
-        G.discardCard(state, discardCandidate.id);
-        const result = G.goOut(state, full, dict);
-        if (result.success)
-          return { drewFrom, drawnCard, discarded: discardCandidate, wentOut: true, words: full, isFinalTurn: result.isFinalTurn };
-      }
-    }
-    const partial = G.findPartialPartition(newHand, dict, _wordIndex);
-    const cardToDiscard = G.chooseBestDiscard(newHand, dict, _wordIndex);
-    G.discardCard(state, cardToDiscard.id);
-    return { drewFrom, drawnCard, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
-  };
-}
-
-const AI_VARIANTS = {
-  default(state, who, dict) { return G.aiTakeTurn(state, dict, _wordIndex); },
-  mc(state, who, dict)      { return G.aiTakeTurn(state, dict, _wordIndex); },
-  old(state, who, dict)     { return _aiTakeTurnOld(state, dict, _wordIndex); },
-  mc1: _makeMcAi(1),
-  mc2: _makeMcAi(2),
-  mc5: _makeMcAi(5),
+const AGENT_CONFIGS = {
+  default: { mcSims: 10 },
+  old:     { mcSims: 0  },
+  mc1:     { mcSims: 1  },
+  mc2:     { mcSims: 2  },
+  mc5:     { mcSims: 5  },
+  mc10:    { mcSims: 10 },
+  mc25:    { mcSims: 25 },
 };
 
 // ── Round runner ──────────────────────────────────────────────────────────────
 
 const MAX_TURNS_PER_ROUND = 300; // safety valve
 
-function runRound(state, ai1, ai2, dict, verbose) {
+function runRound(state, agent1, agent2, dict, verbose) {
   const roundStats = { turns: 0, discardDraws: 0, wentOutFirst: null };
 
   while (state.phase === 'round') {
@@ -162,8 +75,8 @@ function runRound(state, ai1, ai2, dict, verbose) {
     }
 
     const who    = state.turn;
-    const aiFn   = who === 'player' ? ai1 : ai2;
-    const result = aiFn(state, who, dict);
+    const agent  = who === 'player' ? agent1 : agent2;
+    const result = G.aiTakeTurn(state, dict, _wordIndex, agent);
 
     roundStats.turns++;
     if (result.drewFrom === 'discard') roundStats.discardDraws++;
@@ -231,7 +144,7 @@ function _forceEndFinalTurn(state, who, dict) {
 
 // ── Full game runner ──────────────────────────────────────────────────────────
 
-function runGame(ai1, ai2, dict, verbose) {
+function runGame(agent1, agent2, dict, verbose) {
   const state = G.createGameState();
   const gameStats = {
     rounds: [],
@@ -249,7 +162,7 @@ function runGame(ai1, ai2, dict, verbose) {
       process.stdout.write(`\nRound ${state.round} (${n} cards each), ${state.turn} goes first\n`);
     }
 
-    const roundStats = runRound(state, ai1, ai2, dict, verbose);
+    const roundStats = runRound(state, agent1, agent2, dict, verbose);
     roundStats.round          = state.round;
     roundStats.playerScore    = state.player.roundScore;
     roundStats.computerScore  = state.computer.roundScore;
@@ -386,11 +299,11 @@ function parseArgs(argv) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
 
-  if (!AI_VARIANTS[args.ai1]) { console.error(`Unknown AI variant: ${args.ai1}`); process.exit(1); }
-  if (!AI_VARIANTS[args.ai2]) { console.error(`Unknown AI variant: ${args.ai2}`); process.exit(1); }
+  if (!AGENT_CONFIGS[args.ai1]) { console.error(`Unknown agent: ${args.ai1}. Available: ${Object.keys(AGENT_CONFIGS).join(', ')}`); process.exit(1); }
+  if (!AGENT_CONFIGS[args.ai2]) { console.error(`Unknown agent: ${args.ai2}. Available: ${Object.keys(AGENT_CONFIGS).join(', ')}`); process.exit(1); }
 
-  const ai1 = AI_VARIANTS[args.ai1];
-  const ai2 = AI_VARIANTS[args.ai2];
+  const agent1 = AGENT_CONFIGS[args.ai1];
+  const agent2 = AGENT_CONFIGS[args.ai2];
 
   process.stdout.write('Loading dictionary… ');
   const dict = loadDictionary();
@@ -408,7 +321,7 @@ function main() {
 
   if (!args.verbose) process.stdout.write('Simulating');
   for (let i = 0; i < args.games; i++) {
-    results.push(runGame(ai1, ai2, dict, args.verbose));
+    results.push(runGame(agent1, agent2, dict, args.verbose));
     if (!args.verbose && (i + 1) % dots === 0) process.stdout.write('.');
   }
   if (!args.verbose) process.stdout.write('\n');

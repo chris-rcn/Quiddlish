@@ -345,7 +345,7 @@ function discardAndEndTurn(cardId) {
 function runComputerTurn() {
   if (gameState.phase !== 'round' || gameState.turn !== 'computer') return;
 
-  const result = aiTakeTurn(gameState, dict, wordIndex);
+  const result = aiTakeTurn(gameState, dict, wordIndex, DEFAULT_AGENT);
 
   if (result.wentOut) {
     // Computer went out — player gets one final turn (turn already set to 'player' by goOut)
@@ -373,7 +373,7 @@ function runComputerFinalTurn() {
     return;
   }
 
-  const result = aiTakeTurn(gameState, dict, wordIndex);
+  const result = aiTakeTurn(gameState, dict, wordIndex, DEFAULT_AGENT);
 
   let computerGoOutMsg = null;
   if (result.wentOut) {
