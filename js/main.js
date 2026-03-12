@@ -375,7 +375,7 @@ function runComputerFinalTurn() {
     computerGoOutMsg = `Computer went out — words scored +${computerWordPts} pts.`;
   } else {
     // Computer couldn't go out — commit its best partial word arrangement
-    const partial = findPartialPartition(gameState.computer.hand, dict, 300, wordIndex);
+    const partial = findPartialPartition(gameState.computer.hand, dict, wordIndex);
     const usedIds = new Set(partial.words.flat().map(c => c.id));
     gameState.computer.words = partial.words;
     gameState.computer.hand = gameState.computer.hand.filter(c => !usedIds.has(c.id));

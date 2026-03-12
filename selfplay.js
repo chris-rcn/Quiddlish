@@ -20,30 +20,14 @@ const vm   = require('vm');
 
 const ROOT = __dirname;
 
-const SELFPLAY_MS = 5; // ms budget per backtracking call — raise for stronger but slower AI
-
 const G = vm.createContext({
   Math, Date, Set, Map, Array, Object, console, JSON,
   parseInt, parseFloat, Number, isNaN, isFinite, String, Boolean,
-  SELFPLAY_MS,
 });
 
 for (const file of ['js/cards.js', 'js/gameEngine.js', 'js/wordIndex.js', 'js/ai.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, file), 'utf8'), G);
 }
-
-// Patch shouldDrawDiscard to honour SELFPLAY_MS instead of the hardcoded 100ms
-// that the browser build uses.  This is the main bottleneck in batch simulation.
-vm.runInContext(`
-shouldDrawDiscard = function selfplayDrawDiscard(hand, topDiscard, dict) {
-  if (!topDiscard) return false;
-  const without  = findPartialPartition(hand, dict, SELFPLAY_MS);
-  const withCard = findPartialPartition([...hand, topDiscard], dict, SELFPLAY_MS);
-  const gained   = withCard.words.flat().reduce((s, c) => s + c.points, 0)
-                 - without.words.flat().reduce((s, c) => s + c.points, 0);
-  return gained > 0;
-};
-`, G);
 
 // ── Load dictionary ───────────────────────────────────────────────────────────
 
@@ -62,78 +46,12 @@ function loadDictionary() {
 // `who` is 'player' | 'computer'.  state.turn is already set to `who`.
 //
 // Add new strategies here to compare them against each other.
-//
-// Time budget notes:
-//   The browser game uses 300ms per call; self-play uses SELFPLAY_MS (default 5ms)
-//   so that hundreds of games run in reasonable time.  Raise SELFPLAY_MS at the
-//   top of the file for stronger but slower AI.
-
-function makeTurn(state, who, dict, ms, wi = null) {
-  const hand       = [...state[who].hand];
-  const topDiscard = state.discard[state.discard.length - 1] || null;
-
-  // Draw phase — inline shouldDrawDiscard so the per-variant budget applies
-  let drewFrom;
-  if (topDiscard) {
-    const without  = G.findPartialPartition(hand, dict, ms, wi);
-    const withCard = G.findPartialPartition([...hand, topDiscard], dict, ms, wi);
-    const gained   = withCard.words.flat().reduce((s, c) => s + c.points, 0)
-                   - without.words.flat().reduce((s, c) => s + c.points, 0);
-    if (gained > 0) {
-      G.drawFromDiscard(state);
-      drewFrom = 'discard';
-    } else {
-      G.drawFromDeck(state);
-      drewFrom = 'deck';
-    }
-  } else {
-    G.drawFromDeck(state);
-    drewFrom = 'deck';
-  }
-
-  const newHand = state[who].hand;
-
-  // Try to go out: try each card as the discard, lowest-value first
-  const byValueAsc = [...newHand].sort((a, b) => a.points - b.points);
-  for (const cand of byValueAsc) {
-    const remaining = newHand.filter(c => c.id !== cand.id);
-    const full = G.findBestWordPartition(remaining, dict, ms, wi);
-    if (full) {
-      G.discardCard(state, cand.id);
-      const result = G.goOut(state, full, dict);
-      if (result.success) {
-        return { drewFrom, discarded: cand, wentOut: true, words: full, isFinalTurn: result.isFinalTurn };
-      }
-    }
-  }
-
-  // Cannot go out — find best partial and discard worst unused card
-  const partial       = G.findPartialPartition(newHand, dict, ms, wi);
-  const cardToDiscard = G.chooseBestDiscard(newHand, partial.words);
-  G.discardCard(state, cardToDiscard.id);
-  return { drewFrom, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
-}
 
 // Built once after dict loads; shared across all games and variants
 let _wordIndex = null;
 
 const AI_VARIANTS = {
-
-  // Standard strategy with SELFPLAY_MS (5ms) budget, no index
-  default(state, who, dict) {
-    return makeTurn(state, who, dict, SELFPLAY_MS);
-  },
-
-  // Stronger search — 10ms per backtracking call, no index
-  ms10(state, who, dict) {
-    return makeTurn(state, who, dict, 10);
-  },
-
-  // Token-multiset index — O(1) per subset, minimal time budget needed
-  indexed(state, who, dict) {
-    return makeTurn(state, who, dict, 1, _wordIndex);
-  },
-
+  default(state, who, dict) { return G.aiTakeTurn(state, dict, _wordIndex); },
 };
 
 // ── Round runner ──────────────────────────────────────────────────────────────
@@ -209,7 +127,7 @@ function _finishRound(state, who, partialWords, dict) {
 
 /** Safety: force the current player to end their final turn. */
 function _forceEndFinalTurn(state, who, dict) {
-  const partial  = G.findPartialPartition(state[who].hand, dict, 200);
+  const partial  = G.findPartialPartition(state[who].hand, dict, _wordIndex);
   const usedIds  = new Set(partial.words.flat().map(c => c.id));
   state[who].words = partial.words;
   state[who].hand  = state[who].hand.filter(c => !usedIds.has(c.id));

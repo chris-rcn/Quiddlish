@@ -2,54 +2,22 @@
 
 /**
  * Find the best partition of hand cards into valid words.
- * Uses backtracking with a deadline to avoid excessive computation.
- * When wordIndex is provided, each subset check is O(1) (no permutations needed).
  * @param {Card[]} hand
- * @param {Set<string>} dict
- * @param {number} [timeLimitMs=400]
- * @param {Map|null} [wordIndex=null] — precomputed token-multiset index from buildWordIndex()
+ * @param {Set<string>} dict  (unused — kept for API compatibility)
+ * @param {Map} wordIndex — precomputed token-multiset index from buildWordIndex()
  * @returns {Card[][]|null} — array of word groups using all cards, or null if not found
  */
-function findBestWordPartition(hand, dict, timeLimitMs = 400, wordIndex = null) {
-  const deadline = Date.now() + timeLimitMs;
-
-  if (wordIndex) {
-    // Fast path: O(1) per subset via index lookup — no permutation generation
-    function backtrackFast(remaining, groups) {
-      if (Date.now() > deadline) return null;
-      if (remaining.length === 0) return groups;
-      const maxSize = remaining.length;
-      for (let size = 3; size <= maxSize; size++) {
-        for (const subset of combinations(remaining, size)) {
-          const hits = wordIndex.get(cardSubsetKey(subset));
-          if (hits) {
-            const arranged = arrangeCards(subset, hits[0].tokenOrder);
-            if (arranged) {
-              const rest = remaining.filter(c => !subset.includes(c));
-              const result = backtrackFast(rest, [...groups, arranged]);
-              if (result !== null) return result;
-            }
-          }
-        }
-      }
-      return null;
-    }
-    return backtrackFast(hand, []);
-  }
-
-  // Slow path: exhaustive permutation search (no index available)
+function findBestWordPartition(hand, dict, wordIndex) {
   function backtrack(remaining, groups) {
-    if (Date.now() > deadline) return null;
     if (remaining.length === 0) return groups;
-    const maxSize = remaining.length;
-    for (let size = 3; size <= maxSize; size++) {
+    for (let size = 3; size <= remaining.length; size++) {
       for (const subset of combinations(remaining, size)) {
-        for (const perm of permutations(subset)) {
-          if (Date.now() > deadline) return null;
-          const word = perm.map(c => c.letters).join('').toLowerCase();
-          if (dict.has(word)) {
+        const hits = wordIndex.get(cardSubsetKey(subset));
+        if (hits) {
+          const arranged = arrangeCards(subset, hits[0].tokenOrder);
+          if (arranged) {
             const rest = remaining.filter(c => !subset.includes(c));
-            const result = backtrack(rest, [...groups, perm]);
+            const result = backtrack(rest, [...groups, arranged]);
             if (result !== null) return result;
           }
         }
@@ -57,20 +25,17 @@ function findBestWordPartition(hand, dict, timeLimitMs = 400, wordIndex = null) 
     }
     return null;
   }
-
   return backtrack(hand, []);
 }
 
 /**
- * Find the best PARTIAL partition — maximizes word coverage.
+ * Find the best PARTIAL partition — maximizes word points covered.
  * Returns { words: Card[][], unused: Card[] }
  * @param {Card[]} hand
- * @param {Set<string>} dict
- * @param {number} [timeLimitMs=400]
- * @param {Map|null} [wordIndex=null]
+ * @param {Set<string>} dict  (unused — kept for API compatibility)
+ * @param {Map} wordIndex — precomputed token-multiset index from buildWordIndex()
  */
-function findPartialPartition(hand, dict, timeLimitMs = 400, wordIndex = null) {
-  const deadline = Date.now() + timeLimitMs;
+function findPartialPartition(hand, dict, wordIndex) {
   let bestResult = { words: [], unused: [...hand] };
   let bestWordsPoints = 0;
 
@@ -82,51 +47,16 @@ function findPartialPartition(hand, dict, timeLimitMs = 400, wordIndex = null) {
     }
   }
 
-  if (wordIndex) {
-    // Fast path
-    function backtrackFast(remaining, groups) {
-      if (Date.now() > deadline) return;
-      if (remaining.length === 0) {
-        updateBest(groups, []);
-        return;
-      }
-      updateBest(groups, remaining);
-      const maxSize = remaining.length;
-      for (let size = 3; size <= maxSize; size++) {
-        for (const subset of combinations(remaining, size)) {
-          if (Date.now() > deadline) return;
-          const hits = wordIndex.get(cardSubsetKey(subset));
-          if (hits) {
-            const arranged = arrangeCards(subset, hits[0].tokenOrder);
-            if (arranged) {
-              const rest = remaining.filter(c => !subset.includes(c));
-              backtrackFast(rest, [...groups, arranged]);
-            }
-          }
-        }
-      }
-    }
-    backtrackFast(hand, []);
-    return bestResult;
-  }
-
-  // Slow path
   function backtrack(remaining, groups) {
-    if (Date.now() > deadline) return;
-    if (remaining.length === 0) {
-      updateBest(groups, []);
-      return;
-    }
+    if (remaining.length === 0) { updateBest(groups, []); return; }
     updateBest(groups, remaining);
-    const maxSize = remaining.length;
-    for (let size = 3; size <= maxSize; size++) {
+    for (let size = 3; size <= remaining.length; size++) {
       for (const subset of combinations(remaining, size)) {
-        if (Date.now() > deadline) return;
-        for (const perm of permutations(subset)) {
-          const word = perm.map(c => c.letters).join('').toLowerCase();
-          if (dict.has(word)) {
-            const rest = remaining.filter(c => !subset.includes(c));
-            backtrack(rest, [...groups, perm]);
+        const hits = wordIndex.get(cardSubsetKey(subset));
+        if (hits) {
+          const arranged = arrangeCards(subset, hits[0].tokenOrder);
+          if (arranged) {
+            backtrack(remaining.filter(c => !subset.includes(c)), [...groups, arranged]);
           }
         }
       }
@@ -143,12 +73,13 @@ function findPartialPartition(hand, dict, timeLimitMs = 400, wordIndex = null) {
  * @param {Card[]} hand
  * @param {Card} topDiscard
  * @param {Set<string>} dict
+ * @param {Map} wordIndex
  * @returns {boolean}
  */
-function shouldDrawDiscard(hand, topDiscard, dict) {
+function shouldDrawDiscard(hand, topDiscard, dict, wordIndex) {
   if (!topDiscard) return false;
-  const without = findPartialPartition(hand, dict, 100);
-  const withCard = findPartialPartition([...hand, topDiscard], dict, 100);
+  const without  = findPartialPartition(hand, dict, wordIndex);
+  const withCard = findPartialPartition([...hand, topDiscard], dict, wordIndex);
   const gainedPts = withCard.words.flat().reduce((s, c) => s + c.points, 0)
     - without.words.flat().reduce((s, c) => s + c.points, 0);
   return gainedPts > 0;
@@ -176,15 +107,16 @@ function chooseBestDiscard(hand, foundWords) {
  * Mutates state via gameEngine functions.
  * @param {object} state
  * @param {Set<string>} dict
- * @param {Map|null} [wordIndex=null] — pass the precomputed index for fast search
+ * @param {Map} wordIndex — precomputed token-multiset index from buildWordIndex()
  * @returns {{ drewFrom, discarded, wentOut, words }}
  */
-function aiTakeTurn(state, dict, wordIndex = null) {
-  const hand = [...state.computer.hand];
+function aiTakeTurn(state, dict, wordIndex) {
+  const who = state.turn;
+  const hand = [...state[who].hand];
   const topDiscard = state.discard[state.discard.length - 1] || null;
 
   // 1. Decide draw source
-  const drawDiscard = shouldDrawDiscard(hand, topDiscard, dict);
+  const drawDiscard = shouldDrawDiscard(hand, topDiscard, dict, wordIndex);
   let drewFrom;
   if (drawDiscard && topDiscard) {
     drawFromDiscard(state);
@@ -194,29 +126,29 @@ function aiTakeTurn(state, dict, wordIndex = null) {
     drewFrom = 'deck';
   }
 
-  const newHand = state.computer.hand;
+  const newHand = state[who].hand;
 
   // 2. Can go out? Try each card as the discard (lowest-value first);
   //    check whether the remaining n-1 cards form a complete valid word partition.
   const byValueAsc = [...newHand].sort((a, b) => a.points - b.points);
   for (const discardCandidate of byValueAsc) {
     const remaining = newHand.filter(c => c.id !== discardCandidate.id);
-    const full = findBestWordPartition(remaining, dict, 300, wordIndex);
+    const full = findBestWordPartition(remaining, dict, wordIndex);
     if (full) {
       discardCard(state, discardCandidate.id);
       const result = goOut(state, full, dict);
       if (result.success) {
-        return { drewFrom, discarded: discardCandidate, wentOut: true, words: full };
+        return { drewFrom, discarded: discardCandidate, wentOut: true, words: full, isFinalTurn: result.isFinalTurn };
       }
     }
   }
 
   // 3. Cannot go out — find partial partition and choose best discard
-  const partial = findPartialPartition(newHand, dict, 200, wordIndex);
+  const partial = findPartialPartition(newHand, dict, wordIndex);
   const cardToDiscard = chooseBestDiscard(newHand, partial.words);
   discardCard(state, cardToDiscard.id);
 
-  return { drewFrom, discarded: cardToDiscard, wentOut: false, words: partial.words };
+  return { drewFrom, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
 }
 
 // ─── Combinatorics helpers ───────────────────────────────────────────────────
@@ -232,13 +164,3 @@ function* combinations(arr, k) {
   }
 }
 
-/** Generate all permutations of `arr`. */
-function* permutations(arr) {
-  if (arr.length <= 1) { yield arr; return; }
-  for (let i = 0; i < arr.length; i++) {
-    const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
-    for (const perm of permutations(rest)) {
-      yield [arr[i], ...perm];
-    }
-  }
-}
