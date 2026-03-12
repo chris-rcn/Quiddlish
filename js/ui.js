@@ -194,7 +194,7 @@ function renderButtons(state) {
 
   // Word-zone is always visible during a round
   const wordZone = document.getElementById('word-zone');
-  wordZone.classList.toggle('hidden', state.phase === 'start' || state.phase === 'gameEnd');
+  wordZone.classList.toggle('hidden', state.phase === 'start');
 
   // Shuffle hand button: available any time it's the player's turn
   const shuffleBtn = document.getElementById('shuffle-hand-btn');
