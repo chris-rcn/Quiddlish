@@ -181,20 +181,24 @@ function initDragAndDrop(opts) {
     });
   });
 
-  // ── discard pile drop zone (drag hand card to discard = end turn) ─────────
-  const discardPileEl = document.getElementById('discard-pile');
-  if (discardPileEl) {
-    discardPileEl.addEventListener('dragover', e => {
+  // ── piles section drop zone (drag hand/word card anywhere in piles panel = discard) ──
+  const pilesSectionEl = document.getElementById('piles-section');
+  if (pilesSectionEl) {
+    pilesSectionEl.addEventListener('dragover', e => {
       if (dragState && (dragState.sourceType === 'hand' || dragState.sourceType === 'word')) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        discardPileEl.classList.add('drag-over');
+        pilesSectionEl.classList.add('drag-over');
       }
     });
-    discardPileEl.addEventListener('dragleave', () => discardPileEl.classList.remove('drag-over'));
-    discardPileEl.addEventListener('drop', e => {
+    pilesSectionEl.addEventListener('dragleave', e => {
+      if (!pilesSectionEl.contains(e.relatedTarget)) {
+        pilesSectionEl.classList.remove('drag-over');
+      }
+    });
+    pilesSectionEl.addEventListener('drop', e => {
       e.preventDefault();
-      discardPileEl.classList.remove('drag-over');
+      pilesSectionEl.classList.remove('drag-over');
       if (dragState && (dragState.sourceType === 'hand' || dragState.sourceType === 'word')) {
         opts.onDiscardCard(dragState.cardId);
       }
@@ -286,7 +290,7 @@ function initTouchDragAndDrop(opts) {
     if (el.closest('#player-hand')) {
       return { type: 'hand' };
     }
-    if (el.closest('#discard-pile')) {
+    if (el.closest('#piles-section')) {
       return { type: 'discard' };
     }
     // Fallback: finger may have gone past the right edge of a word-row.
