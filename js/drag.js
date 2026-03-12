@@ -4,6 +4,7 @@
 //   2. Moving cards between hand and word-zone rows
 
 let dragState = null; // { cardId, sourceType: 'hand'|'word', wordRowIndex? }
+let pilesDropEnterCount = 0; // tracks nested dragenter/dragleave within #piles-section
 
 /**
  * Call once after the hand and word-zone are rendered.
@@ -184,20 +185,41 @@ function initDragAndDrop(opts) {
   // ── piles section drop zone (drag hand/word card anywhere in piles panel = discard) ──
   const pilesSectionEl = document.getElementById('piles-section');
   if (pilesSectionEl) {
+    // Chrome requires e.preventDefault() on the direct element under the cursor, not just
+    // an ancestor. Add dragover to every child so any element in the panel accepts the drop.
+    pilesSectionEl.querySelectorAll('*').forEach(child => {
+      child.addEventListener('dragover', e => {
+        if (dragState && (dragState.sourceType === 'hand' || dragState.sourceType === 'word')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        }
+      });
+    });
+
+    // Use a counter for reliable highlight across nested children (dragleave fires on every
+    // child transition, so a simple contains() check can miss cases).
+    pilesSectionEl.addEventListener('dragenter', e => {
+      if (dragState && (dragState.sourceType === 'hand' || dragState.sourceType === 'word')) {
+        pilesDropEnterCount++;
+        pilesSectionEl.classList.add('drag-over');
+      }
+    });
+    pilesSectionEl.addEventListener('dragleave', () => {
+      if (pilesDropEnterCount > 0) pilesDropEnterCount--;
+      if (pilesDropEnterCount <= 0) {
+        pilesDropEnterCount = 0;
+        pilesSectionEl.classList.remove('drag-over');
+      }
+    });
     pilesSectionEl.addEventListener('dragover', e => {
       if (dragState && (dragState.sourceType === 'hand' || dragState.sourceType === 'word')) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        pilesSectionEl.classList.add('drag-over');
-      }
-    });
-    pilesSectionEl.addEventListener('dragleave', e => {
-      if (!pilesSectionEl.contains(e.relatedTarget)) {
-        pilesSectionEl.classList.remove('drag-over');
       }
     });
     pilesSectionEl.addEventListener('drop', e => {
       e.preventDefault();
+      pilesDropEnterCount = 0;
       pilesSectionEl.classList.remove('drag-over');
       if (dragState && (dragState.sourceType === 'hand' || dragState.sourceType === 'word')) {
         opts.onDiscardCard(dragState.cardId);
