@@ -65,7 +65,7 @@ const MAX_TURNS_PER_ROUND = 300; // safety valve
 
 function runRound(state, agent1, agent2, ai1Name, ai2Name, dict, verbose) {
   const roundStats = {
-    turns: 0, discardDraws: 0, wentOutFirst: null,
+    turns: 0, discardDraws: 0, wentOutFirst: null, wentOutLongestWord: 0,
     ai1TurnMs: 0, ai1MaxMs: 0, ai1Turns: 0,
     ai2TurnMs: 0, ai2MaxMs: 0, ai2Turns: 0,
   };
@@ -109,7 +109,12 @@ function runRound(state, agent1, agent2, ai1Name, ai2Name, dict, verbose) {
     }
 
     if (result.wentOut) {
-      if (roundStats.wentOutFirst === null) roundStats.wentOutFirst = who;
+      if (roundStats.wentOutFirst === null) {
+        roundStats.wentOutFirst = who;
+        roundStats.wentOutLongestWord = Math.max(
+          ...result.words.map(g => g.reduce((s, c) => s + c.letters.length, 0))
+        );
+      }
 
       if (result.isFinalTurn) {
         // Second player went out → score and end round
@@ -229,6 +234,7 @@ function aggregateStats(results) {
   const byRound = Array.from({ length: 8 }, () => ({
     playerWentOut: 0, computerWentOut: 0, neither: 0,
     totalTurns: 0, playerScore: 0, computerScore: 0, games: 0,
+    longestWordTotal: 0, longestWordGames: 0,
   }));
 
   for (const g of results) {
@@ -257,6 +263,10 @@ function aggregateStats(results) {
       if      (r.wentOutFirst === 'player')   rb.playerWentOut++;
       else if (r.wentOutFirst === 'computer') rb.computerWentOut++;
       else                                    rb.neither++;
+      if (r.wentOutLongestWord > 0) {
+        rb.longestWordTotal += r.wentOutLongestWord;
+        rb.longestWordGames++;
+      }
     }
   }
 
@@ -304,19 +314,20 @@ function printStats(stats, ai1Name, ai2Name) {
   const a1Out = `${ai1Name}Out%`.padEnd(9);
   const a2Out = `${ai2Name}Out%`.padEnd(9);
   const a1Pts = `${ai1Name}Pts`.padEnd(11);
-  const a2Pts = `${ai2Name}Pts`;
+  const a2Pts = `${ai2Name}Pts`.padEnd(9);
   console.log(`\n  Per-round breakdown`);
-  console.log(`  ${'Rnd'.padEnd(4)} ${'Cards'.padEnd(6)} ${'AvgTurns'.padEnd(9)} ${a1Out} ${a2Out} ${a1Pts} ${a2Pts}`);
+  console.log(`  ${'Rnd'.padEnd(4)} ${'Cards'.padEnd(6)} ${'AvgTurns'.padEnd(9)} ${a1Out} ${a2Out} ${a1Pts} ${a2Pts} ${'AvgLong'}`);
   for (let i = 0; i < 8; i++) {
     const rb    = stats.byRound[i];
     const cards = i + 3; // round 1 = 3 cards
     if (rb.games === 0) continue;
-    const avgT  = (rb.totalTurns     / rb.games).toFixed(1);
-    const pOut  = (rb.playerWentOut  / rb.games * 100).toFixed(1);
+    const avgT  = (rb.totalTurns      / rb.games).toFixed(1);
+    const pOut  = (rb.playerWentOut   / rb.games * 100).toFixed(1);
     const cOut  = (rb.computerWentOut / rb.games * 100).toFixed(1);
-    const avgP  = (rb.playerScore    / rb.games).toFixed(1);
-    const avgC  = (rb.computerScore  / rb.games).toFixed(1);
-    console.log(`  ${String(i+1).padEnd(4)} ${String(cards).padEnd(6)} ${avgT.padEnd(9)} ${(pOut+'%').padEnd(9)} ${(cOut+'%').padEnd(9)} ${avgP.padEnd(11)} ${avgC}`);
+    const avgP  = (rb.playerScore     / rb.games).toFixed(1);
+    const avgC  = (rb.computerScore   / rb.games).toFixed(1);
+    const avgL  = rb.longestWordGames ? (rb.longestWordTotal / rb.longestWordGames).toFixed(1) : '-';
+    console.log(`  ${String(i+1).padEnd(4)} ${String(cards).padEnd(6)} ${avgT.padEnd(9)} ${(pOut+'%').padEnd(9)} ${(cOut+'%').padEnd(9)} ${avgP.padEnd(11)} ${avgC.padEnd(9)} ${avgL}`);
   }
   console.log('════════════════════════════════════════════════════════\n');
 }
