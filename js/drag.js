@@ -113,6 +113,8 @@ function initDragAndDrop(opts) {
       } else if (dragState.sourceType === 'word') {
         if (dragState.wordRowIndex !== targetRow) {
           opts.onWordToWordInsertBefore(dragState.cardId, dragState.wordRowIndex, targetRow, el.dataset.cardId);
+        } else {
+          opts.onWordReorderById(dragState.cardId, targetRow, el.dataset.cardId);
         }
       } else if (dragState.sourceType === 'discard') {
         opts.onDrawFromDiscardToWordBefore(targetRow, el.dataset.cardId);
@@ -169,6 +171,8 @@ function initDragAndDrop(opts) {
       } else if (dragState.sourceType === 'word') {
         if (dragState.wordRowIndex !== targetRow) {
           opts.onWordToWord(dragState.cardId, dragState.wordRowIndex, targetRow);
+        } else {
+          opts.onWordMoveToEnd(dragState.cardId, targetRow);
         }
       } else if (dragState.sourceType === 'discard') {
         opts.onDrawFromDiscardToWord(targetRow);
@@ -336,9 +340,15 @@ function initTouchDragAndDrop(opts) {
         } else if (target.type === 'word-card' && target.rowIndex !== wordRowIndex) {
           // Dropped onto a specific card in another row → insert before it
           touchOpts.onWordToWordInsertBefore(cardId, wordRowIndex, target.rowIndex, target.cardId);
+        } else if (target.type === 'word-card' && target.rowIndex === wordRowIndex) {
+          // Dropped onto a card in the same row → reorder
+          touchOpts.onWordReorderById(cardId, wordRowIndex, target.cardId);
         } else if (target.type === 'word-row' && target.rowIndex !== wordRowIndex) {
           // Dropped on a row's background → append to end
           touchOpts.onWordToWord(cardId, wordRowIndex, target.rowIndex);
+        } else if (target.type === 'word-row' && target.rowIndex === wordRowIndex) {
+          // Dropped on same row's background → move to end
+          touchOpts.onWordMoveToEnd(cardId, wordRowIndex);
         } else if (target.type === 'hand-card' || target.type === 'hand') {
           // Centre-based detection in hand for position-aware insert.
           const handCards = [...document.querySelectorAll('#player-hand .card')];
