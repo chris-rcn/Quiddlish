@@ -50,8 +50,51 @@ function loadDictionary() {
 // Built once after dict loads; shared across all games and variants
 let _wordIndex = null;
 
+// Original heuristic: take discard only if it strictly improves the partition
+// vs. the current hand (ignores the distribution of deck draws).
+function _shouldDrawDiscardOld(hand, topDiscard, dict, wordIndex) {
+  if (!topDiscard) return false;
+  const without   = G.findPartialPartition(hand, dict, wordIndex);
+  const withCard  = G.findPartialPartition([...hand, topDiscard], dict, wordIndex);
+  const gainedPts = withCard.words.flat().reduce((s, c) => s + c.points, 0)
+    - without.words.flat().reduce((s, c) => s + c.points, 0);
+  return gainedPts > 0;
+}
+
+function _aiTakeTurnOld(state, dict, wordIndex) {
+  const who = state.turn;
+  const hand = [...state[who].hand];
+  const topDiscard = state.discard;
+  const drawDiscard = _shouldDrawDiscardOld(hand, topDiscard, dict, wordIndex);
+  let drewFrom, drawnCard = null;
+  if (drawDiscard && topDiscard) {
+    G.drawFromDiscard(state); drewFrom = 'discard';
+    drawnCard = state[who].hand[state[who].hand.length - 1];
+  } else {
+    G.drawFromDeck(state); drewFrom = 'deck';
+  }
+  const newHand = state[who].hand;
+  const byValueAsc = [...newHand].sort((a, b) => a.points - b.points);
+  for (const discardCandidate of byValueAsc) {
+    const remaining = newHand.filter(c => c.id !== discardCandidate.id);
+    const full = G.findBestWordPartition(remaining, dict, wordIndex);
+    if (full) {
+      G.discardCard(state, discardCandidate.id);
+      const result = G.goOut(state, full, dict);
+      if (result.success)
+        return { drewFrom, drawnCard, discarded: discardCandidate, wentOut: true, words: full, isFinalTurn: result.isFinalTurn };
+    }
+  }
+  const partial = G.findPartialPartition(newHand, dict, wordIndex);
+  const cardToDiscard = G.chooseBestDiscard(newHand, dict, wordIndex);
+  G.discardCard(state, cardToDiscard.id);
+  return { drewFrom, drawnCard, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
+}
+
 const AI_VARIANTS = {
   default(state, who, dict) { return G.aiTakeTurn(state, dict, _wordIndex); },
+  mc(state, who, dict)      { return G.aiTakeTurn(state, dict, _wordIndex); },
+  old(state, who, dict)     { return _aiTakeTurnOld(state, dict, _wordIndex); },
 };
 
 // ── Round runner ──────────────────────────────────────────────────────────────
