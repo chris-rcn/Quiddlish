@@ -5,6 +5,7 @@
 
 let gameState = null;
 let dict = null;
+let wordIndex = null;
 
 // Player's current word-zone arrangement (Card[][]) — lives here, not in gameState.
 // Word-zone cards are removed from player.hand when dragged in, and restored when dragged back.
@@ -339,7 +340,7 @@ function discardAndEndTurn(cardId) {
 function runComputerTurn() {
   if (gameState.phase !== 'round' || gameState.turn !== 'computer') return;
 
-  const result = aiTakeTurn(gameState, dict);
+  const result = aiTakeTurn(gameState, dict, wordIndex);
 
   if (result.wentOut) {
     // Computer went out — player gets one final turn (turn already set to 'player' by goOut)
@@ -366,7 +367,7 @@ function runComputerFinalTurn() {
     return;
   }
 
-  const result = aiTakeTurn(gameState, dict);
+  const result = aiTakeTurn(gameState, dict, wordIndex);
 
   let computerGoOutMsg = null;
   if (result.wentOut) {
@@ -374,7 +375,7 @@ function runComputerFinalTurn() {
     computerGoOutMsg = `Computer went out — words scored +${computerWordPts} pts.`;
   } else {
     // Computer couldn't go out — commit its best partial word arrangement
-    const partial = findPartialPartition(gameState.computer.hand, dict, 300);
+    const partial = findPartialPartition(gameState.computer.hand, dict, 300, wordIndex);
     const usedIds = new Set(partial.words.flat().map(c => c.id));
     gameState.computer.words = partial.words;
     gameState.computer.hand = gameState.computer.hand.filter(c => !usedIds.has(c.id));
@@ -421,6 +422,7 @@ async function init() {
   renderMessage('Loading dictionary…');
   try {
     dict = await loadDictionary();
+    wordIndex = buildWordIndex(dict, CARD_DEFINITIONS);
     document.getElementById('new-game-btn').disabled = false;
     startNewGame(); // auto-deal on load
   } catch (err) {

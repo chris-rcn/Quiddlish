@@ -28,7 +28,7 @@ const G = vm.createContext({
   SELFPLAY_MS,
 });
 
-for (const file of ['js/cards.js', 'js/gameEngine.js', 'js/ai.js']) {
+for (const file of ['js/cards.js', 'js/gameEngine.js', 'js/wordIndex.js', 'js/ai.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, file), 'utf8'), G);
 }
 
@@ -68,15 +68,15 @@ function loadDictionary() {
 //   so that hundreds of games run in reasonable time.  Raise SELFPLAY_MS at the
 //   top of the file for stronger but slower AI.
 
-function makeTurn(state, who, dict, ms) {
+function makeTurn(state, who, dict, ms, wi = null) {
   const hand       = [...state[who].hand];
   const topDiscard = state.discard[state.discard.length - 1] || null;
 
   // Draw phase — inline shouldDrawDiscard so the per-variant budget applies
   let drewFrom;
   if (topDiscard) {
-    const without  = G.findPartialPartition(hand, dict, ms);
-    const withCard = G.findPartialPartition([...hand, topDiscard], dict, ms);
+    const without  = G.findPartialPartition(hand, dict, ms, wi);
+    const withCard = G.findPartialPartition([...hand, topDiscard], dict, ms, wi);
     const gained   = withCard.words.flat().reduce((s, c) => s + c.points, 0)
                    - without.words.flat().reduce((s, c) => s + c.points, 0);
     if (gained > 0) {
@@ -97,7 +97,7 @@ function makeTurn(state, who, dict, ms) {
   const byValueAsc = [...newHand].sort((a, b) => a.points - b.points);
   for (const cand of byValueAsc) {
     const remaining = newHand.filter(c => c.id !== cand.id);
-    const full = G.findBestWordPartition(remaining, dict, ms);
+    const full = G.findBestWordPartition(remaining, dict, ms, wi);
     if (full) {
       G.discardCard(state, cand.id);
       const result = G.goOut(state, full, dict);
@@ -108,22 +108,30 @@ function makeTurn(state, who, dict, ms) {
   }
 
   // Cannot go out — find best partial and discard worst unused card
-  const partial       = G.findPartialPartition(newHand, dict, ms);
+  const partial       = G.findPartialPartition(newHand, dict, ms, wi);
   const cardToDiscard = G.chooseBestDiscard(newHand, partial.words);
   G.discardCard(state, cardToDiscard.id);
   return { drewFrom, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
 }
 
+// Built once after dict loads; shared across all games and variants
+let _wordIndex = null;
+
 const AI_VARIANTS = {
 
-  // Standard strategy with SELFPLAY_MS (5ms) budget
+  // Standard strategy with SELFPLAY_MS (5ms) budget, no index
   default(state, who, dict) {
     return makeTurn(state, who, dict, SELFPLAY_MS);
   },
 
-  // Stronger search — 10ms per backtracking call
+  // Stronger search — 10ms per backtracking call, no index
   ms10(state, who, dict) {
     return makeTurn(state, who, dict, 10);
+  },
+
+  // Token-multiset index — O(1) per subset, minimal time budget needed
+  indexed(state, who, dict) {
+    return makeTurn(state, who, dict, 1, _wordIndex);
   },
 
 };
@@ -375,7 +383,14 @@ function main() {
 
   process.stdout.write('Loading dictionary… ');
   const dict = loadDictionary();
-  console.log(`${dict.size.toLocaleString()} words loaded.\n`);
+  console.log(`${dict.size.toLocaleString()} words loaded.`);
+
+  // Build the token-multiset index inside the vm context, where CARD_DEFINITIONS
+  // (a const) is accessible.  Pass dict in via the context object, retrieve index out.
+  G._selfplayDict = dict;
+  vm.runInContext('_selfplayWordIndex = buildWordIndex(_selfplayDict, CARD_DEFINITIONS);', G);
+  _wordIndex = G._selfplayWordIndex;
+  console.log(`Word index: ${_wordIndex.size.toLocaleString()} entries.\n`);
 
   const results = [];
   const dots = Math.max(1, Math.floor(args.games / 50));
