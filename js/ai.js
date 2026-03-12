@@ -89,7 +89,7 @@ function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex) {
 
   const discardScore = partitionScore([...hand, topDiscard], dict, wordIndex);
 
-  const sampleSize = Math.min(deck.length, 5);
+  const sampleSize = Math.min(deck.length, 10);
   if (sampleSize === 0) return discardScore > partitionScore(hand, dict, wordIndex);
 
   let deckTotal = 0;
