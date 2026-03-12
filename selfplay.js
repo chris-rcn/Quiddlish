@@ -5,9 +5,12 @@
 // Runs N full computer-vs-computer games and prints statistics.
 //
 // Usage:
-//   node selfplay.js --ai1 <agent> --ai2 <agent> [--games N] [--verbose]
+//   node selfplay.js --ai1 <json> --ai2 <json> [--games N] [--verbose]
 //
-// --ai1 / --ai2 Agent config names (required) — see AGENT_CONFIGS below.
+// --ai1 / --ai2 JSON override objects merged onto BASE_AGENT (required).
+//               Supply a "name" key to control the display label.
+//               Examples:  --ai1 '{}'  --ai2 '{"mcSims":5}'
+//                          --ai1 '{"name":"base"}' --ai2 '{"name":"mc10","mcSims":10}'
 // --games N     Number of games to simulate (default: 500)
 // --verbose     Print every turn
 
@@ -40,24 +43,17 @@ function loadDictionary() {
   return dict;
 }
 
-// ── Agent configs ─────────────────────────────────────────────────────────────
-// Each entry is an Agent object passed to G.aiTakeTurn(state, dict, wordIndex, agent).
-// Agent parameters:
+// ── Base agent config ─────────────────────────────────────────────────────────
+// Agent parameters passed to G.aiTakeTurn(state, dict, wordIndex, agent):
 //   mcSims {number} — MC samples for the draw decision (0 = simple heuristic)
 //
-// Add new configs here to compare strategies against each other.
+// Override values are supplied on the command line as JSON objects merged onto
+// BASE_AGENT.  A "name" key in the override sets the display label.
 
 // Built once after dict loads; shared across all games
 let _wordIndex = null;
 
-const AGENT_CONFIGS = {
-  old:  { mcSims: 0  },
-  mc1:  { mcSims: 1  },
-  mc2:  { mcSims: 2  },
-  mc5:  { mcSims: 5  },
-  mc10: { mcSims: 10 },
-  mc25: { mcSims: 25 },
-};
+const BASE_AGENT = { mcSims: 0 };
 
 // ── Round runner ──────────────────────────────────────────────────────────────
 
@@ -429,13 +425,21 @@ function parseArgs(argv) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
 
-  const available = Object.keys(AGENT_CONFIGS).join(', ');
-  if (!args.ai1 || !args.ai2) { console.error(`Usage: node selfplay.js --games N --ai1 <agent> --ai2 <agent>\nAvailable agents: ${available}`); process.exit(1); }
-  if (!AGENT_CONFIGS[args.ai1]) { console.error(`Unknown agent: ${args.ai1}. Available: ${available}`); process.exit(1); }
-  if (!AGENT_CONFIGS[args.ai2]) { console.error(`Unknown agent: ${args.ai2}. Available: ${available}`); process.exit(1); }
+  if (!args.ai1 || !args.ai2) {
+    console.error('Usage: node selfplay.js --ai1 <json> --ai2 <json> [--games N] [--verbose]');
+    process.exit(1);
+  }
 
-  const agent1 = AGENT_CONFIGS[args.ai1];
-  const agent2 = AGENT_CONFIGS[args.ai2];
+  let ai1Overrides, ai2Overrides;
+  try { ai1Overrides = JSON.parse(args.ai1); } catch { console.error(`--ai1: invalid JSON: ${args.ai1}`); process.exit(1); }
+  try { ai2Overrides = JSON.parse(args.ai2); } catch { console.error(`--ai2: invalid JSON: ${args.ai2}`); process.exit(1); }
+
+  const ai1Name = ai1Overrides.name || args.ai1;
+  const ai2Name = ai2Overrides.name || args.ai2;
+  const { name: _n1, ...ai1Config } = ai1Overrides;
+  const { name: _n2, ...ai2Config } = ai2Overrides;
+  const agent1 = { ...BASE_AGENT, ...ai1Config };
+  const agent2 = { ...BASE_AGENT, ...ai2Config };
 
   process.stdout.write('Loading dictionary… ');
   const dict = loadDictionary();
@@ -453,13 +457,13 @@ function main() {
 
   if (!args.verbose) process.stdout.write('Simulating');
   for (let i = 0; i < args.games; i++) {
-    const [gameA, gameB] = runGamePair(agent1, agent2, args.ai1, args.ai2, dict, args.verbose);
+    const [gameA, gameB] = runGamePair(agent1, agent2, ai1Name, ai2Name, dict, args.verbose);
     results.push(gameA, gameB);
     if (!args.verbose && (i + 1) % dots === 0) process.stdout.write('.');
   }
   if (!args.verbose) process.stdout.write('\n');
 
-  printStats(aggregateStats(results, args.games), args.ai1, args.ai2);
+  printStats(aggregateStats(results, args.games), ai1Name, ai2Name);
 }
 
 main();
