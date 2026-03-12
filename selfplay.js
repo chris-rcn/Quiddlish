@@ -91,10 +91,60 @@ function _aiTakeTurnOld(state, dict, wordIndex) {
   return { drewFrom, drawnCard, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
 }
 
+// Factory: same as aiTakeTurn but with a fixed MC sample size.
+function _makeMcAi(samples) {
+  return function(state, who, dict) {
+    const hand = [...state[who].hand];
+    const topDiscard = state.discard;
+    // MC draw decision with fixed sample count
+    let drawDiscard = false;
+    if (topDiscard) {
+      const discardScore = G.partitionScore([...hand, topDiscard], dict, _wordIndex);
+      const n = Math.min(state.deck.length, samples);
+      if (n === 0) {
+        drawDiscard = discardScore > G.partitionScore(hand, dict, _wordIndex);
+      } else {
+        let total = 0;
+        for (let i = 0; i < n; i++) {
+          const card = state.deck[Math.floor(Math.random() * state.deck.length)];
+          total += G.partitionScore([...hand, card], dict, _wordIndex);
+        }
+        drawDiscard = discardScore > total / n;
+      }
+    }
+    let drewFrom, drawnCard = null;
+    if (drawDiscard && topDiscard) {
+      G.drawFromDiscard(state); drewFrom = 'discard';
+      drawnCard = state[who].hand[state[who].hand.length - 1];
+    } else {
+      G.drawFromDeck(state); drewFrom = 'deck';
+    }
+    const newHand = state[who].hand;
+    const byValueAsc = [...newHand].sort((a, b) => a.points - b.points);
+    for (const discardCandidate of byValueAsc) {
+      const remaining = newHand.filter(c => c.id !== discardCandidate.id);
+      const full = G.findBestWordPartition(remaining, dict, _wordIndex);
+      if (full) {
+        G.discardCard(state, discardCandidate.id);
+        const result = G.goOut(state, full, dict);
+        if (result.success)
+          return { drewFrom, drawnCard, discarded: discardCandidate, wentOut: true, words: full, isFinalTurn: result.isFinalTurn };
+      }
+    }
+    const partial = G.findPartialPartition(newHand, dict, _wordIndex);
+    const cardToDiscard = G.chooseBestDiscard(newHand, dict, _wordIndex);
+    G.discardCard(state, cardToDiscard.id);
+    return { drewFrom, drawnCard, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
+  };
+}
+
 const AI_VARIANTS = {
   default(state, who, dict) { return G.aiTakeTurn(state, dict, _wordIndex); },
   mc(state, who, dict)      { return G.aiTakeTurn(state, dict, _wordIndex); },
   old(state, who, dict)     { return _aiTakeTurnOld(state, dict, _wordIndex); },
+  mc1: _makeMcAi(1),
+  mc2: _makeMcAi(2),
+  mc5: _makeMcAi(5),
 };
 
 // ── Round runner ──────────────────────────────────────────────────────────────
