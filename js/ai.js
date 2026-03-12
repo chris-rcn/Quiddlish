@@ -67,22 +67,39 @@ function findPartialPartition(hand, dict, wordIndex) {
   return bestResult;
 }
 
+/** Sum of word-card points in the best partial partition of hand. */
+function partitionScore(hand, dict, wordIndex) {
+  return findPartialPartition(hand, dict, wordIndex)
+    .words.flat().reduce((s, c) => s + c.points, 0);
+}
+
 /**
  * Decide whether to draw from the discard pile.
- * Heuristic: try adding topDiscard to hand and see if it improves the partition.
+ * Monte Carlo: compare the known value of taking the discard against the
+ * expected value of drawing a random card from the remaining deck.
  * @param {Card[]} hand
- * @param {Card} topDiscard
+ * @param {Card|null} topDiscard
+ * @param {Card[]} deck  — remaining deck (used for MC sampling)
  * @param {Set<string>} dict
  * @param {Map} wordIndex
  * @returns {boolean}
  */
-function shouldDrawDiscard(hand, topDiscard, dict, wordIndex) {
+function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex) {
   if (!topDiscard) return false;
-  const without  = findPartialPartition(hand, dict, wordIndex);
-  const withCard = findPartialPartition([...hand, topDiscard], dict, wordIndex);
-  const gainedPts = withCard.words.flat().reduce((s, c) => s + c.points, 0)
-    - without.words.flat().reduce((s, c) => s + c.points, 0);
-  return gainedPts > 0;
+
+  const discardScore = partitionScore([...hand, topDiscard], dict, wordIndex);
+
+  const sampleSize = Math.min(deck.length, 10);
+  if (sampleSize === 0) return discardScore > partitionScore(hand, dict, wordIndex);
+
+  let deckTotal = 0;
+  for (let i = 0; i < sampleSize; i++) {
+    const card = deck[Math.floor(Math.random() * deck.length)];
+    deckTotal += partitionScore([...hand, card], dict, wordIndex);
+  }
+  const avgDeckScore = deckTotal / sampleSize;
+
+  return discardScore > avgDeckScore;
 }
 
 /**
@@ -119,7 +136,7 @@ function aiTakeTurn(state, dict, wordIndex) {
   const topDiscard = state.discard;
 
   // 1. Decide draw source
-  const drawDiscard = shouldDrawDiscard(hand, topDiscard, dict, wordIndex);
+  const drawDiscard = shouldDrawDiscard(hand, topDiscard, state.deck, dict, wordIndex);
   let drewFrom;
   let drawnCard = null;
   if (drawDiscard && topDiscard) {
