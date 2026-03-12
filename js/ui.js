@@ -22,14 +22,14 @@ function makeCardEl(card, opts = {}) {
 
 // ─── Computer hand ───────────────────────────────────────────────────────────
 
-function renderComputerHand(state, faceUpCardId) {
+function renderComputerHand(state, faceUpCardIds) {
   const el = document.getElementById('computer-hand');
   el.innerHTML = '';
   el.classList.add('facedown-spread');
   const n = state.computer.hand.length;
   for (let i = 0; i < n; i++) {
     const card = state.computer.hand[i];
-    const faceDown = card.id !== faceUpCardId;
+    const faceDown = !faceUpCardIds || !faceUpCardIds.has(card.id);
     el.appendChild(makeCardEl(card, { faceDown }));
   }
   const label = document.getElementById('computer-hand-label');
@@ -300,7 +300,7 @@ function hideResultPanel() { /* no-op — results now live in the game log */ }
  * @param {Set<string>} dict
  * @param {string} message
  */
-function renderAll(state, wordGroups, dict, message, faceUpComputerCardId) {
+function renderAll(state, wordGroups, dict, message, faceUpComputerCardIds) {
   renderScores(state);
   renderDeckAndDiscard(state);
   renderPlayerHand(state);
@@ -320,7 +320,7 @@ function renderAll(state, wordGroups, dict, message, faceUpComputerCardId) {
     hideResultPanel();
     renderWordZone(displayGroups, dict, interactive);
   } else {
-    renderComputerHand(state, faceUpComputerCardId);
+    renderComputerHand(state, faceUpComputerCardIds);
     hideResultPanel();
     renderWordZone(displayGroups, dict, interactive);
   }
