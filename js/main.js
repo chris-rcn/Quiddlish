@@ -306,12 +306,13 @@ function discardAndEndTurn(cardId) {
   } else {
     // If the card being discarded is the only card left in hand and the word
     // zone holds valid words, treat this discard as going out.
+    const filledGroups = playerWordGroups.filter(g => g.length > 0);
     if (gameState.player.hand.length === 1 &&
         gameState.player.hand[0].id === cardId &&
-        playerWordGroups.length > 0 &&
-        validateWordGroups(playerWordGroups, dict).valid) {
+        filledGroups.length > 0 &&
+        validateWordGroups(filledGroups, dict).valid) {
       discardCard(gameState, cardId);      // hand is now empty
-      const result = goOut(gameState, playerWordGroups, dict);
+      const result = goOut(gameState, filledGroups, dict);
       playerWordGroups = [];
       const playerWordPts = gameState.player.words.flat().reduce((s, c) => s + c.points, 0);
       if (result.isFinalTurn) {
