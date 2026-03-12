@@ -86,20 +86,23 @@ function shouldDrawDiscard(hand, topDiscard, dict, wordIndex) {
 }
 
 /**
- * Choose the card to discard: lowest-value card not contributing to any found word.
+ * Choose the card to discard: the one whose removal leaves the highest-scoring
+ * partial partition on the remaining hand (one-step lookahead).
  * @param {Card[]} hand
- * @param {Card[][]} foundWords — current best partition
+ * @param {Set<string>} dict
+ * @param {Map} wordIndex
  * @returns {Card}
  */
-function chooseBestDiscard(hand, foundWords) {
-  const usedIds = new Set(foundWords.flat().map(c => c.id));
-  const candidates = hand.filter(c => !usedIds.has(c.id));
-  if (candidates.length > 0) {
-    // Discard the lowest-value unused card
-    return candidates.reduce((min, c) => c.points < min.points ? c : min, candidates[0]);
+function chooseBestDiscard(hand, dict, wordIndex) {
+  let bestScore = -1;
+  let bestCard = hand[0];
+  for (const card of hand) {
+    const remaining = hand.filter(c => c.id !== card.id);
+    const pts = findPartialPartition(remaining, dict, wordIndex)
+      .words.flat().reduce((s, c) => s + c.points, 0);
+    if (pts > bestScore) { bestScore = pts; bestCard = card; }
   }
-  // All cards are in words — discard the lowest-value card from the least-valuable word
-  return hand.reduce((min, c) => c.points < min.points ? c : min, hand[0]);
+  return bestCard;
 }
 
 /**
@@ -143,9 +146,9 @@ function aiTakeTurn(state, dict, wordIndex) {
     }
   }
 
-  // 3. Cannot go out — find partial partition and choose best discard
+  // 3. Cannot go out — choose discard that leaves the best remaining partition
   const partial = findPartialPartition(newHand, dict, wordIndex);
-  const cardToDiscard = chooseBestDiscard(newHand, partial.words);
+  const cardToDiscard = chooseBestDiscard(newHand, dict, wordIndex);
   discardCard(state, cardToDiscard.id);
 
   return { drewFrom, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
