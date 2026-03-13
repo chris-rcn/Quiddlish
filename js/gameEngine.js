@@ -77,17 +77,11 @@ function dealRound(state, freshDeck) {
   state.discard = state.deck.pop();
 }
 
-/** Reshuffle the deck (called after every draw per game rules). */
-function reshuffle(state) {
-  shuffleDeck(state.deck);
-}
-
 /** Draw top card from deck into the active player's hand. */
 function drawFromDeck(state) {
   if (state.deck.length === 0) return null;
   const card = state.deck.pop();
   state[state.turn].hand.push(card);
-  reshuffle(state);
   state.turnPhase = 'discard';
   return card;
 }
@@ -98,7 +92,6 @@ function drawFromDiscard(state) {
   const card = state.discard;
   state.discard = null;
   state[state.turn].hand.push(card);
-  reshuffle(state);
   state.turnPhase = 'discard';
   return card;
 }
