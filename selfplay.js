@@ -383,10 +383,13 @@ function printStats(stats, ai1Name, ai2Name, totalRounds = 8) {
   const roundsNote = totalRounds < 8 ? ` (${totalRounds} rounds/game)` : '';
   console.log(` ${stats.pairs.toLocaleString()} deck shuffles × 2 positions = ${n.toLocaleString()} games${roundsNote}`);
   console.log('════════════════════════════════════════════════════════');
+  const advantage = (parseFloat(stats.ai2WinPct) - parseFloat(stats.ai1WinPct)).toFixed(1);
+  const advSign   = parseFloat(advantage) > 0 ? '+' : '';
   console.log(`\n  Outcomes`);
   console.log(`    ${ai1Name.padEnd(col)} wins: ${w(stats.ai1Wins, 6)} (${stats.ai1WinPct}%)`);
   console.log(`    ${ai2Name.padEnd(col)} wins: ${w(stats.ai2Wins, 6)} (${stats.ai2WinPct}%)`);
   console.log(`    ${'Ties'.padEnd(col)}      : ${w(stats.ties, 6)} (${stats.tiePct}%)`);
+  console.log(`    ${'Advantage'.padEnd(col)}  : ${ai2Name} ${advSign}${advantage}%`);
   console.log(`\n  Scores (per game average)`);
   console.log(`    ${ai1Name.padEnd(col)}: ${stats.avgAi1Score}`);
   console.log(`    ${ai2Name.padEnd(col)}: ${stats.avgAi2Score}`);
