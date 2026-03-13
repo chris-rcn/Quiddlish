@@ -410,6 +410,15 @@ body {
   margin-left: 0;
 }
 
+/* Face-up cards are shown fully, separated from the face-down stack */
+.computer-hand.facedown-spread .card:not(.face-down) {
+  margin-left: 6px;
+}
+
+.computer-hand.facedown-spread .card:not(.face-down):first-child {
+  margin-left: 0;
+}
+
 .revealed-word {
   display: flex;
   flex-wrap: nowrap;
