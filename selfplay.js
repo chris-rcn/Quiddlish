@@ -45,15 +45,23 @@ function loadDictionary() {
 
 // ── Base agent config ─────────────────────────────────────────────────────────
 // Agent parameters passed to G.aiTakeTurn(state, dict, wordIndex, agent):
-//   mcSims {number} — MC samples for the draw decision (0 = simple heuristic)
+//   mcSims {number}                   — MC samples for draw decision (0 = simple heuristic)
+//   longestWordFeatureWeight {number}  — scales the ±10 longest-word bonus term in discard
+//                                        scoring (0 = disabled, 1 = full; default 0)
+//   longestWordSigma {number}          — std-dev of the normal model for the opponent's
+//                                        longest word when they haven't gone out yet (default 1.5)
 //
 // Override values are supplied on the command line as JSON objects merged onto
 // BASE_AGENT.  A "name" key in the override sets the display label.
+// Examples:
+//   --ai1 '{"name":"base"}'
+//   --ai2 '{"name":"lww1","longestWordFeatureWeight":1}'
+//   --ai2 '{"name":"lww1s1","longestWordFeatureWeight":1,"longestWordSigma":1.0}'
 
 // Built once after dict loads; shared across all games
 let _wordIndex = null;
 
-const BASE_AGENT = { mcSims: 0 };
+const BASE_AGENT = { mcSims: 0, longestWordFeatureWeight: 0, longestWordSigma: 1.5 };
 
 // ── Round runner ──────────────────────────────────────────────────────────────
 
