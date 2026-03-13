@@ -11,7 +11,7 @@
  */
 
 /** Default agent used by the browser game. */
-const DEFAULT_AGENT = { mcSims: 10, longestWordFeatureWeight: 0, longestWordSigma: 1.5 };
+const DEFAULT_AGENT = { mcSims: 5, longestWordFeatureWeight: 1, longestWordSigma: 1.5 };
 
 // Self-play observed average longest-word letter-length per round (index 0 unused).
 const AVG_LONG_BY_ROUND = [0, 3.2, 4.3, 5.2, 3.5, 4.3, 5.2, 4.1, 4.4];
