@@ -32,6 +32,7 @@ function renderComputerHand(state, faceUpCardIds) {
   for (const card of [...faceDown, ...faceUp]) {
     el.appendChild(makeCardEl(card, { faceDown: !faceUpCardIds || !faceUpCardIds.has(card.id) }));
   }
+  const n = state.computer.hand.length;
   const label = document.getElementById('computer-hand-label');
   if (label) label.textContent = `Computer (${n} card${n !== 1 ? 's' : ''})`;
 }
