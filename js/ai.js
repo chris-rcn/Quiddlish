@@ -146,7 +146,9 @@ function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex, agent, cache
   if (!topDiscard) return false;
 
   // Short-circuit: if taking the discard enables going out this turn, always take it.
-  if (agent.checkGoOutOnDraw) {
+  // Skip when the hand itself is already a complete partition — in that case any deck
+  // draw also enables go-out (by discarding the drawn card), so let MC decide.
+  if (agent.checkGoOutOnDraw && !findBestWordPartition(hand, dict, wordIndex, goOutCache)) {
     const handWithDiscard = [...hand, topDiscard];
     const goOutSeen = new Set();
     for (const c of handWithDiscard) {
