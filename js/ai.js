@@ -3,15 +3,17 @@
 /**
  * Agent configuration object controlling AI behaviour.
  * @typedef {object} Agent
- * @property {number} mcSims                  — Monte Carlo samples for draw decision (0 = simple heuristic)
- * @property {number} longestWordFeatureWeight — scales the ±10 longest-word bonus term in discard
+ * @property {number}  mcSims                  — Monte Carlo samples for draw decision (0 = simple heuristic)
+ * @property {number}  longestWordFeatureWeight — scales the ±10 longest-word bonus term in discard
  *   scoring (0 = disabled; 1 = full expected bonus; default 0)
- * @property {number} longestWordSigma         — std-dev of the normal model used to estimate the
+ * @property {number}  longestWordSigma         — std-dev of the normal model used to estimate the
  *   opponent's longest word when they haven't gone out yet (default 1.5)
+ * @property {boolean} checkGoOutOnDraw         — when true, always take the discard if doing so
+ *   enables going out this turn, bypassing the MC/heuristic comparison (default false)
  */
 
 /** Default agent used by the browser game. */
-const DEFAULT_AGENT = { mcSims: 5, longestWordFeatureWeight: 1, longestWordSigma: 1.5 };
+const DEFAULT_AGENT = { mcSims: 5, longestWordFeatureWeight: 1, longestWordSigma: 1.5, checkGoOutOnDraw: true };
 
 // Self-play observed average longest-word letter-length per round (index 0 unused).
 const AVG_LONG_BY_ROUND = [0, 3.2, 4.3, 5.2, 3.5, 4.3, 5.2, 4.1, 4.4];
@@ -140,8 +142,21 @@ function partitionScore(hand, dict, wordIndex, cache) {
  * @param {Agent} agent
  * @returns {boolean}
  */
-function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex, agent, cache) {
+function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex, agent, cache, goOutCache) {
   if (!topDiscard) return false;
+
+  // Short-circuit: if taking the discard enables going out this turn, always take it.
+  if (agent.checkGoOutOnDraw) {
+    const handWithDiscard = [...hand, topDiscard];
+    const goOutSeen = new Set();
+    for (const c of handWithDiscard) {
+      if (goOutSeen.has(c.letters)) continue;
+      goOutSeen.add(c.letters);
+      if (findBestWordPartition(handWithDiscard.filter(x => x.id !== c.id), dict, wordIndex, goOutCache)) {
+        return true;
+      }
+    }
+  }
 
   const discardScore = partitionScore([...hand, topDiscard], dict, wordIndex, cache);
 
@@ -244,7 +259,7 @@ function aiTakeTurn(state, dict, wordIndex, agent = DEFAULT_AGENT) {
   if (!agent._goOutCache)   agent._goOutCache   = new Map();
 
   // 1. Decide draw source
-  const drawDiscard = shouldDrawDiscard(hand, topDiscard, state.deck, dict, wordIndex, agent, agent._partialCache);
+  const drawDiscard = shouldDrawDiscard(hand, topDiscard, state.deck, dict, wordIndex, agent, agent._partialCache, agent._goOutCache);
   let drewFrom;
   let drawnCard = null;
   if (drawDiscard && topDiscard) {
