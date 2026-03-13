@@ -3,11 +3,30 @@
 /**
  * Agent configuration object controlling AI behaviour.
  * @typedef {object} Agent
- * @property {number} mcSims — Monte Carlo samples for draw decision (0 = simple heuristic)
+ * @property {number} mcSims                  — Monte Carlo samples for draw decision (0 = simple heuristic)
+ * @property {number} longestWordFeatureWeight — scales the ±10 longest-word bonus term in discard
+ *   scoring (0 = disabled; 1 = full expected bonus; default 0)
+ * @property {number} longestWordSigma         — std-dev of the normal model used to estimate the
+ *   opponent's longest word when they haven't gone out yet (default 1.5)
  */
 
 /** Default agent used by the browser game. */
-const DEFAULT_AGENT = { mcSims: 10 };
+const DEFAULT_AGENT = { mcSims: 10, longestWordFeatureWeight: 0, longestWordSigma: 1.5 };
+
+// Self-play observed average longest-word letter-length per round (index 0 unused).
+const AVG_LONG_BY_ROUND = [0, 3.2, 4.3, 5.2, 3.5, 4.3, 5.2, 4.1, 4.4];
+
+/**
+ * Normal CDF via Abramowitz & Stegun rational approximation (error < 7.5e-8).
+ * @param {number} x
+ * @returns {number} Φ(x)
+ */
+function normalCDF(x) {
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const d = 0.39894228 * Math.exp(-0.5 * x * x);
+  const p = d * t * (0.31938153 + t * (-0.35656378 + t * (1.78147794 + t * (-1.82125598 + t * 1.33027443))));
+  return x >= 0 ? 1 - p : p;
+}
 
 /**
  * Find the best partition of hand cards into valid words.
@@ -113,21 +132,57 @@ function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex, agent) {
 }
 
 /**
- * Choose the card to discard: the one whose removal leaves the highest-scoring
- * partial partition on the remaining hand (one-step lookahead).
+ * Choose the card to discard: one-step lookahead maximising
+ *
+ *   score = wordCardPoints + longestWordFeatureWeight · (10·P(win) − 10·P(lose))
+ *
+ * When longestWordFeatureWeight is 0 (default) this reduces to the original
+ * word-card point sum, preserving existing behaviour exactly.
+ *
+ * P(win) / P(lose) depend on whether the opponent has already gone out:
+ *  - Opponent went out: their words are visible; comparison is exact (+10 / 0 / −10).
+ *  - Opponent still playing: model their longest word as N(μ, σ²) where μ comes
+ *    from AVG_LONG_BY_ROUND[roundNumber] and σ = agent.longestWordSigma.
+ *
  * @param {Card[]} hand
  * @param {Set<string>} dict
  * @param {Map} wordIndex
+ * @param {Agent} [agent]
+ * @param {{ roundNumber: number, opponentLongestWord: number|null }} [ctx]
+ *   opponentLongestWord: null   = opponent hasn't gone out yet (use normal-CDF model)
+ *                        number = opponent's known longest word letter-length
  * @returns {Card}
  */
-function chooseBestDiscard(hand, dict, wordIndex) {
-  let bestScore = -1;
+function chooseBestDiscard(hand, dict, wordIndex, agent = DEFAULT_AGENT, ctx = { roundNumber: 1, opponentLongestWord: null }) {
+  const w = agent.longestWordFeatureWeight ?? 0;
+  let bestScore = -Infinity;
   let bestCard = hand[0];
+
   for (const card of hand) {
     const remaining = hand.filter(c => c.id !== card.id);
-    const pts = findPartialPartition(remaining, dict, wordIndex)
-      .words.flat().reduce((s, c) => s + c.points, 0);
-    if (pts > bestScore) { bestScore = pts; bestCard = card; }
+    const partition = findPartialPartition(remaining, dict, wordIndex);
+    const pts = partition.words.flat().reduce((s, c) => s + c.points, 0);
+
+    let bonus = 0;
+    if (w !== 0) {
+      const h = partition.words.reduce(
+        (max, g) => Math.max(max, g.map(c => c.letters).join('').length), 0);
+
+      if (ctx.opponentLongestWord !== null) {
+        // Opponent already went out — exact comparison
+        const v = ctx.opponentLongestWord;
+        bonus = h > v ? 10 : h < v ? -10 : 0;
+      } else {
+        // Opponent not yet out — normal-CDF approximation
+        const mu = AVG_LONG_BY_ROUND[ctx.roundNumber] ?? 4.0;
+        const sigma = agent.longestWordSigma ?? 1.5;
+        const pWin = normalCDF((h - mu) / sigma);
+        bonus = 10 * (2 * pWin - 1);
+      }
+    }
+
+    const score = pts + w * bonus;
+    if (score > bestScore) { bestScore = score; bestCard = card; }
   }
   return bestCard;
 }
@@ -178,7 +233,15 @@ function aiTakeTurn(state, dict, wordIndex, agent = DEFAULT_AGENT) {
 
   // 3. Cannot go out — choose discard that leaves the best remaining partition
   const partial = findPartialPartition(newHand, dict, wordIndex);
-  const cardToDiscard = chooseBestDiscard(newHand, dict, wordIndex);
+  const opponent = who === 'player' ? 'computer' : 'player';
+  const opponentLongestWord = state.outBy !== null
+    ? state[opponent].words.reduce(
+        (max, g) => Math.max(max, g.map(c => c.letters).join('').length), 0)
+    : null;
+  const cardToDiscard = chooseBestDiscard(newHand, dict, wordIndex, agent, {
+    roundNumber: state.round,
+    opponentLongestWord,
+  });
   discardCard(state, cardToDiscard.id);
 
   return { drewFrom, drawnCard, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
