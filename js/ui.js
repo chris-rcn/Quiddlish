@@ -26,11 +26,11 @@ function renderComputerHand(state, faceUpCardIds) {
   const el = document.getElementById('computer-hand');
   el.innerHTML = '';
   el.classList.add('facedown-spread');
-  const n = state.computer.hand.length;
-  for (let i = 0; i < n; i++) {
-    const card = state.computer.hand[i];
-    const faceDown = !faceUpCardIds || !faceUpCardIds.has(card.id);
-    el.appendChild(makeCardEl(card, { faceDown }));
+  // Render face-down cards first, then face-up cards so face-up are fully visible on the right.
+  const faceDown = state.computer.hand.filter(c => !faceUpCardIds || !faceUpCardIds.has(c.id));
+  const faceUp   = state.computer.hand.filter(c =>  faceUpCardIds &&  faceUpCardIds.has(c.id));
+  for (const card of [...faceDown, ...faceUp]) {
+    el.appendChild(makeCardEl(card, { faceDown: !faceUpCardIds || !faceUpCardIds.has(card.id) }));
   }
   const label = document.getElementById('computer-hand-label');
   if (label) label.textContent = `Computer (${n} card${n !== 1 ? 's' : ''})`;
