@@ -216,32 +216,56 @@ function aiTakeTurn(state, dict, wordIndex, agent = DEFAULT_AGENT) {
 
   const newHand = state[who].hand;
 
-  // 2. Can go out? Try each card as the discard (lowest-value first);
-  //    check whether the remaining n-1 cards form a complete valid word partition.
-  const byValueAsc = [...newHand].sort((a, b) => a.points - b.points);
-  for (const discardCandidate of byValueAsc) {
-    const remaining = newHand.filter(c => c.id !== discardCandidate.id);
-    const full = findBestWordPartition(remaining, dict, wordIndex);
-    if (full) {
-      discardCard(state, discardCandidate.id);
-      const result = goOut(state, full, dict);
-      if (result.success) {
-        return { drewFrom, drawnCard, discarded: discardCandidate, wentOut: true, words: full, isFinalTurn: result.isFinalTurn };
-      }
-    }
-  }
-
-  // 3. Cannot go out — choose discard that leaves the best remaining partition
-  const partial = findPartialPartition(newHand, dict, wordIndex);
+  // Precompute opponent context used in both go-out scoring and discard scoring.
   const opponent = who === 'player' ? 'computer' : 'player';
   const opponentLongestWord = state.outBy !== null
     ? state[opponent].words.reduce(
         (max, g) => Math.max(max, g.map(c => c.letters).join('').length), 0)
     : null;
-  const cardToDiscard = chooseBestDiscard(newHand, dict, wordIndex, agent, {
-    roundNumber: state.round,
-    opponentLongestWord,
-  });
+  const ctx = { roundNumber: state.round, opponentLongestWord };
+
+  // 2. Can go out? Collect all valid go-out options and pick the highest-scoring one.
+  //    Score = wordCardPoints + longestWordFeatureWeight × bonus (same formula as
+  //    chooseBestDiscard).  When weight is 0 this degenerates to picking the option
+  //    that maximises word-card points, which means discarding the lowest-value card.
+  const w = agent.longestWordFeatureWeight ?? 0;
+  const goOutOptions = [];
+  for (const discardCandidate of newHand) {
+    const remaining = newHand.filter(c => c.id !== discardCandidate.id);
+    const full = findBestWordPartition(remaining, dict, wordIndex);
+    if (full) goOutOptions.push({ discardCandidate, full });
+  }
+  if (goOutOptions.length > 0) {
+    let bestOption = goOutOptions[0];
+    let bestScore = -Infinity;
+    for (const option of goOutOptions) {
+      const pts = option.full.flat().reduce((s, c) => s + c.points, 0);
+      let bonus = 0;
+      if (w !== 0) {
+        const h = option.full.reduce(
+          (max, g) => Math.max(max, g.map(c => c.letters).join('').length), 0);
+        if (ctx.opponentLongestWord !== null) {
+          const v = ctx.opponentLongestWord;
+          bonus = h > v ? 10 : h < v ? -10 : 0;
+        } else {
+          const mu = AVG_LONG_BY_ROUND[ctx.roundNumber] ?? 4.0;
+          const sigma = agent.longestWordSigma ?? 1.5;
+          bonus = 10 * (2 * normalCDF((h - mu) / sigma) - 1);
+        }
+      }
+      const score = pts + w * bonus;
+      if (score > bestScore) { bestScore = score; bestOption = option; }
+    }
+    discardCard(state, bestOption.discardCandidate.id);
+    const result = goOut(state, bestOption.full, dict);
+    if (result.success) {
+      return { drewFrom, drawnCard, discarded: bestOption.discardCandidate, wentOut: true, words: bestOption.full, isFinalTurn: result.isFinalTurn };
+    }
+  }
+
+  // 3. Cannot go out — choose discard that leaves the best remaining partition
+  const partial = findPartialPartition(newHand, dict, wordIndex);
+  const cardToDiscard = chooseBestDiscard(newHand, dict, wordIndex, agent, ctx);
   discardCard(state, cardToDiscard.id);
 
   return { drewFrom, drawnCard, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
