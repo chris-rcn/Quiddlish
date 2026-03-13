@@ -180,7 +180,7 @@ function _forceEndFinalTurn(state, who, dict) {
  *                                        When provided, createDeck() is not called.
  * @param {string}   [round1FirstPlayer]  Force round-1 first player ('player'|'computer').
  */
-function runGame(agent1, agent2, ai1Name, ai2Name, dict, verbose, deckSequence, round1FirstPlayer) {
+function runGame(agent1, agent2, ai1Name, ai2Name, dict, verbose, deckSequence, round1FirstPlayer, totalRounds = 8) {
   const state = G.createGameState();
   const gameStats = {
     rounds: [],
@@ -224,7 +224,7 @@ function runGame(agent1, agent2, ai1Name, ai2Name, dict, verbose, deckSequence, 
       );
     }
 
-    G.checkGameEnd(state);
+    if (state.round >= totalRounds && state.phase === 'roundEnd') state.phase = 'gameEnd';
   }
 
   gameStats.ai1FinalScore = state.player.score;
@@ -288,18 +288,17 @@ function swapGameResult(g) {
  *
  * @returns {[object, object]}  [gameAStats, gameBStatsNormalised]
  */
-function runGamePair(agent1, agent2, ai1Name, ai2Name, dict, verbose) {
-  // Pre-generate one deck per round (8 rounds per game).
-  // dealRound mutates decks by popping cards, so each game gets a shallow clone
-  // of each deck array (card objects themselves are not mutated).
-  const decks = Array.from({ length: 8 }, () => G.createDeck());
+function runGamePair(agent1, agent2, ai1Name, ai2Name, dict, verbose, totalRounds = 8) {
+  // Pre-generate one deck per round. dealRound mutates decks by popping cards,
+  // so each game gets a shallow clone of each deck array.
+  const decks = Array.from({ length: totalRounds }, () => G.createDeck());
   const cloneDecks = () => decks.map(d => [...d]);
 
   if (verbose) process.stdout.write('\n── Game A (deck-normal) ─────────────────────────\n');
-  const gameA = runGame(agent1, agent2, ai1Name, ai2Name, dict, verbose, cloneDecks(), 'player');
+  const gameA = runGame(agent1, agent2, ai1Name, ai2Name, dict, verbose, cloneDecks(), 'player', totalRounds);
 
   if (verbose) process.stdout.write('\n── Game B (positions swapped) ───────────────────\n');
-  const gameBRaw = runGame(agent2, agent1, ai2Name, ai1Name, dict, verbose, cloneDecks(), 'player');
+  const gameBRaw = runGame(agent2, agent1, ai2Name, ai1Name, dict, verbose, cloneDecks(), 'player', totalRounds);
   const gameB    = swapGameResult(gameBRaw);
 
   return [gameA, gameB];
@@ -374,14 +373,15 @@ function aggregateStats(results, pairs) {
   };
 }
 
-function printStats(stats, ai1Name, ai2Name) {
+function printStats(stats, ai1Name, ai2Name, totalRounds = 8) {
   const { n } = stats;
   const w = (s, len) => String(s).padStart(len);
   const col = Math.max(ai1Name.length, ai2Name.length);
 
   console.log('\n════════════════════════════════════════════════════════');
   console.log(` Quiddlish Self-Play: ${ai1Name} vs ${ai2Name}`);
-  console.log(` ${stats.pairs.toLocaleString()} deck shuffles × 2 positions = ${n.toLocaleString()} games`);
+  const roundsNote = totalRounds < 8 ? ` (${totalRounds} rounds/game)` : '';
+  console.log(` ${stats.pairs.toLocaleString()} deck shuffles × 2 positions = ${n.toLocaleString()} games${roundsNote}`);
   console.log('════════════════════════════════════════════════════════');
   console.log(`\n  Outcomes`);
   console.log(`    ${ai1Name.padEnd(col)} wins: ${w(stats.ai1Wins, 6)} (${stats.ai1WinPct}%)`);
@@ -433,12 +433,13 @@ function validateAgentOverrides(overrides, flag) {
 }
 
 function parseArgs(argv) {
-  const args = { games: 500, verbose: false, ai1: null, ai2: null };
+  const args = { games: 500, rounds: 8, verbose: false, ai1: null, ai2: null };
   for (let i = 0; i < argv.length; i++) {
-    if      (argv[i] === '--games'   && argv[i+1]) { args.games   = parseInt(argv[++i], 10); }
+    if      (argv[i] === '--games'   && argv[i+1]) { args.games  = parseInt(argv[++i], 10); }
+    else if (argv[i] === '--rounds'  && argv[i+1]) { args.rounds = parseInt(argv[++i], 10); }
     else if (argv[i] === '--verbose' || argv[i] === '-v') { args.verbose = true; }
-    else if (argv[i] === '--ai1'     && argv[i+1]) { args.ai1    = argv[++i]; }
-    else if (argv[i] === '--ai2'     && argv[i+1]) { args.ai2    = argv[++i]; }
+    else if (argv[i] === '--ai1'     && argv[i+1]) { args.ai1   = argv[++i]; }
+    else if (argv[i] === '--ai2'     && argv[i+1]) { args.ai2   = argv[++i]; }
   }
   return args;
 }
@@ -447,7 +448,7 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
 
   if (!args.ai1 || !args.ai2) {
-    console.error('Usage: node selfplay.js --ai1 <json> --ai2 <json> [--games N] [--verbose]');
+    console.error('Usage: node selfplay.js --ai1 <json> --ai2 <json> [--games N] [--rounds N] [--verbose]');
     process.exit(1);
   }
 
@@ -480,13 +481,13 @@ function main() {
 
   if (!args.verbose) process.stdout.write('Simulating');
   for (let i = 0; i < args.games; i++) {
-    const [gameA, gameB] = runGamePair(agent1, agent2, ai1Name, ai2Name, dict, args.verbose);
+    const [gameA, gameB] = runGamePair(agent1, agent2, ai1Name, ai2Name, dict, args.verbose, args.rounds);
     results.push(gameA, gameB);
     if (!args.verbose && (i + 1) % dots === 0) process.stdout.write('.');
   }
   if (!args.verbose) process.stdout.write('\n');
 
-  printStats(aggregateStats(results, args.games), ai1Name, ai2Name);
+  printStats(aggregateStats(results, args.games), ai1Name, ai2Name, args.rounds);
 }
 
 main();
