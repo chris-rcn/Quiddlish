@@ -419,6 +419,17 @@ function printStats(stats, ai1Name, ai2Name) {
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
+const VALID_AGENT_KEYS = new Set(Object.keys(BASE_AGENT));
+
+function validateAgentOverrides(overrides, flag) {
+  const unknown = Object.keys(overrides).filter(k => k !== 'name' && !VALID_AGENT_KEYS.has(k));
+  if (unknown.length > 0) {
+    console.error(`${flag}: unrecognized agent propert${unknown.length === 1 ? 'y' : 'ies'}: ${unknown.join(', ')}`);
+    console.error(`  Valid: name, ${[...VALID_AGENT_KEYS].join(', ')}`);
+    process.exit(1);
+  }
+}
+
 function parseArgs(argv) {
   const args = { games: 500, verbose: false, ai1: null, ai2: null };
   for (let i = 0; i < argv.length; i++) {
@@ -441,6 +452,8 @@ function main() {
   let ai1Overrides, ai2Overrides;
   try { ai1Overrides = JSON.parse(args.ai1); } catch { console.error(`--ai1: invalid JSON: ${args.ai1}`); process.exit(1); }
   try { ai2Overrides = JSON.parse(args.ai2); } catch { console.error(`--ai2: invalid JSON: ${args.ai2}`); process.exit(1); }
+  validateAgentOverrides(ai1Overrides, '--ai1');
+  validateAgentOverrides(ai2Overrides, '--ai2');
 
   const ai1Name = ai1Overrides.name || args.ai1;
   const ai2Name = ai2Overrides.name || args.ai2;
