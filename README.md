@@ -131,7 +131,17 @@ later be a penalty). This is used whenever the AI cannot go out.
 ### Draw Decision
 
 `shouldDrawDiscard` decides whether to take the visible discard card or draw blind from the
-deck. Two modes are available, controlled by the `mcSims` agent parameter:
+deck.
+
+**Short-circuit (`checkGoOutOnDraw = true`)** — before any score comparison, if taking the
+discard card would enable going out on this very turn (i.e. some card in the resulting hand
+can be discarded to leave a complete valid partition), the discard is always taken. This
+corrects a failure mode where `partitionScore` undervalues the discard because it measures
+partial-partition points rather than the go-out opportunity. Exception: if the current hand
+is *already* a complete partition, the short-circuit is skipped — any deck draw also enables
+go-out (by discarding the drawn card), so the MC comparison is used instead.
+
+Two score-comparison modes are available, controlled by the `mcSims` agent parameter:
 
 - **Heuristic (`mcSims = 0`)** — compute the partial-partition score of the hand *with* the
   discard added, and compare it to the current score without. Take the discard only if it
@@ -140,15 +150,16 @@ deck. Two modes are available, controlled by the `mcSims` agent parameter:
 - **Monte Carlo (`mcSims > 0`)** — sample `min(deck size, mcSims)` cards at random from the
   deck, compute the average expected partial-partition score across those samples, and compare
   it to the known score of taking the discard. This accounts for the distribution of what a
-  deck draw might bring. The default browser agent uses `mcSims = 10`.
+  deck draw might bring. The default browser agent uses `mcSims = 5`.
 
 ### Go-Out Attempt
 
-After drawing, the AI tries to go out. It sorts the hand by point value (ascending) and for
-each card tests whether discarding it leaves a complete valid partition of the rest. The
-first candidate that works triggers a go-out. Sorting by ascending value maximises the
-chance of shedding a low-value card — the AI prefers not to waste a high-value tile as the
-discard.
+After drawing, the AI tries to go out. It collects every card whose removal leaves a
+complete valid partition of the rest, then scores each candidate using the same formula as
+discard selection (see below): `wordCardPoints + longestWordFeatureWeight × bonus`. The
+candidate with the highest score is chosen as the discard and the AI goes out. When
+`longestWordFeatureWeight = 0` this reduces to picking the discard that maximises word-card
+points, which is equivalent to shedding the lowest-value card (the former behaviour).
 
 ### Discard Selection
 
@@ -165,7 +176,11 @@ of the n−1 remaining cards. This is the primary objective.
 **The longest-word bonus term** (enabled when `longestWordFeatureWeight > 0`) adjusts the
 score based on the probability that the hero's longest word will beat the opponent's at
 round end, adding up to ±10 points to steer the AI toward building longer words when it is
-worth it.
+worth it. On normal mid-round turns the partial partition is speculative (future draws and
+discards will change it), so `longestWordFeatureWeight` is forced to zero and the score
+reduces to `wordCardPoints` alone. The weight is applied only when the opponent has already
+gone out — at that point the hero is on their final bonus turn and the partial partition is
+the committed result.
 
 Let `h` = the letter-count of the longest word in the hero's partial partition after the
 hypothetical discard.
@@ -220,9 +235,10 @@ AI optimises purely for word-card points.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `mcSims` | number | 10 (browser) / 0 (selfplay) | Monte Carlo samples for the draw decision. 0 uses the simple heuristic. |
-| `longestWordFeatureWeight` | number | 0 | Scale factor for the longest-word bonus term in discard scoring. 0 disables it; 1 applies the full ±10 expected bonus. |
+| `mcSims` | number | 5 (browser) / 0 (selfplay) | Monte Carlo samples for the draw decision. 0 uses the simple heuristic. |
+| `longestWordFeatureWeight` | number | 1 (browser) / 0 (selfplay) | Scale factor for the longest-word bonus term in discard scoring. 0 disables it; 1 applies the full ±10 expected bonus. Only active when committing final words (final bonus turn); forced to 0 on normal turns. |
 | `longestWordSigma` | number | 1.5 | Standard deviation of the normal model for the opponent's longest word when they have not yet gone out. |
+| `checkGoOutOnDraw` | boolean | true (browser) / false (selfplay) | When true, always take the discard card if doing so enables going out on this turn (unless the hand is already a complete partition). |
 
 ---
 
