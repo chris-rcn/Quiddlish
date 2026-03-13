@@ -33,31 +33,45 @@ function normalCDF(x) {
  * @param {Card[]} hand
  * @param {Set<string>} dict  (unused — kept for API compatibility)
  * @param {Map} wordIndex — precomputed token-multiset index from buildWordIndex()
+ * @param {Map} [cache] — optional persistent cache: letterKey → string[][]|null
  * @returns {Card[][]|null} — array of word groups using all cards, or null if not found
  */
-function findBestWordPartition(hand, dict, wordIndex) {
-  function backtrack(remaining, groups) {
-    if (remaining.length === 0) return groups;
+function findBestWordPartition(hand, dict, wordIndex, cache = new Map()) {
+  function coveredSeqs(remaining) {
+    const key = remaining.map(c => c.letters).sort().join('|');
+    if (cache.has(key)) return cache.get(key);
+    if (remaining.length === 0) { cache.set(key, []); return []; }
+
     for (let size = 3; size <= remaining.length; size++) {
       const triedSubsetKeys = new Set();
       for (const subset of combinations(remaining, size)) {
-        const key = cardSubsetKey(subset);
-        if (triedSubsetKeys.has(key)) continue;
-        triedSubsetKeys.add(key);
-        const hits = wordIndex.get(key);
+        const subKey = cardSubsetKey(subset);
+        if (triedSubsetKeys.has(subKey)) continue;
+        triedSubsetKeys.add(subKey);
+        const hits = wordIndex.get(subKey);
         if (hits) {
           const arranged = arrangeCards(subset, hits[0].tokenOrder);
           if (arranged) {
-            const rest = remaining.filter(c => !subset.includes(c));
-            const result = backtrack(rest, [...groups, arranged]);
-            if (result !== null) return result;
+            const inner = coveredSeqs(remaining.filter(c => !subset.includes(c)));
+            if (inner !== null) {
+              const result = [arranged.map(c => c.letters), ...inner];
+              cache.set(key, result);
+              return result;
+            }
           }
         }
       }
     }
+    cache.set(key, null);
     return null;
   }
-  return backtrack(hand, []);
+
+  const seqs = coveredSeqs(hand);
+  if (!seqs) return null;
+  // Reconstruct Card[][] from letter sequences using actual card instances
+  const available = [...hand];
+  return seqs.map(seq =>
+    seq.map(l => { const idx = available.findIndex(c => c.letters === l); return available.splice(idx, 1)[0]; }));
 }
 
 /**
@@ -66,46 +80,49 @@ function findBestWordPartition(hand, dict, wordIndex) {
  * @param {Card[]} hand
  * @param {Set<string>} dict  (unused — kept for API compatibility)
  * @param {Map} wordIndex — precomputed token-multiset index from buildWordIndex()
+ * @param {Map} [cache] — optional persistent cache: letterKey → { pts, wordLetterSeqs }
  */
-function findPartialPartition(hand, dict, wordIndex) {
-  let bestResult = { words: [], unused: [...hand] };
-  let bestWordsPoints = 0;
+function findPartialPartition(hand, dict, wordIndex, cache = new Map()) {
+  function bestFor(remaining) {
+    const key = remaining.map(c => c.letters).sort().join('|');
+    if (cache.has(key)) return cache.get(key);
 
-  function updateBest(groups, remaining) {
-    const pts = groups.flat().reduce((s, c) => s + c.points, 0);
-    if (pts > bestWordsPoints && groups.length > 0) {
-      bestWordsPoints = pts;
-      bestResult = { words: [...groups], unused: [...remaining] };
-    }
-  }
-
-  function backtrack(remaining, groups) {
-    if (remaining.length === 0) { updateBest(groups, []); return; }
-    updateBest(groups, remaining);
+    let best = { pts: 0, wordLetterSeqs: [] };
     for (let size = 3; size <= remaining.length; size++) {
       const triedSubsetKeys = new Set();
       for (const subset of combinations(remaining, size)) {
-        const key = cardSubsetKey(subset);
-        if (triedSubsetKeys.has(key)) continue;
-        triedSubsetKeys.add(key);
-        const hits = wordIndex.get(key);
+        const subKey = cardSubsetKey(subset);
+        if (triedSubsetKeys.has(subKey)) continue;
+        triedSubsetKeys.add(subKey);
+        const hits = wordIndex.get(subKey);
         if (hits) {
           const arranged = arrangeCards(subset, hits[0].tokenOrder);
           if (arranged) {
-            backtrack(remaining.filter(c => !subset.includes(c)), [...groups, arranged]);
+            const subPts = arranged.reduce((s, c) => s + c.points, 0);
+            const inner = bestFor(remaining.filter(c => !subset.includes(c)));
+            if (subPts + inner.pts > best.pts) {
+              best = { pts: subPts + inner.pts,
+                       wordLetterSeqs: [arranged.map(c => c.letters), ...inner.wordLetterSeqs] };
+            }
           }
         }
       }
     }
+    cache.set(key, best);
+    return best;
   }
 
-  backtrack(hand, []);
-  return bestResult;
+  const { wordLetterSeqs } = bestFor(hand);
+  // Reconstruct Card[][] from letter sequences using actual card instances
+  const available = [...hand];
+  const words = wordLetterSeqs.map(seq =>
+    seq.map(l => { const idx = available.findIndex(c => c.letters === l); return available.splice(idx, 1)[0]; }));
+  return { words, unused: available };
 }
 
 /** Sum of word-card points in the best partial partition of hand. */
-function partitionScore(hand, dict, wordIndex) {
-  return findPartialPartition(hand, dict, wordIndex)
+function partitionScore(hand, dict, wordIndex, cache) {
+  return findPartialPartition(hand, dict, wordIndex, cache)
     .words.flat().reduce((s, c) => s + c.points, 0);
 }
 
@@ -123,22 +140,22 @@ function partitionScore(hand, dict, wordIndex) {
  * @param {Agent} agent
  * @returns {boolean}
  */
-function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex, agent) {
+function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex, agent, cache) {
   if (!topDiscard) return false;
 
-  const discardScore = partitionScore([...hand, topDiscard], dict, wordIndex);
+  const discardScore = partitionScore([...hand, topDiscard], dict, wordIndex, cache);
 
   const sampleSize = Math.min(deck.length, agent.mcSims);
-  if (sampleSize === 0) return discardScore > partitionScore(hand, dict, wordIndex);
+  if (sampleSize === 0) return discardScore > partitionScore(hand, dict, wordIndex, cache);
 
-  const cache = new Map(); // card.letters → partitionScore (tiles are interchangeable by letters)
+  const mcCache = new Map(); // card.letters → partitionScore (tiles are interchangeable by letters)
   let deckTotal = 0;
   for (let i = 0; i < sampleSize; i++) {
     const card = deck[Math.floor(Math.random() * deck.length)];
-    let score = cache.get(card.letters);
+    let score = mcCache.get(card.letters);
     if (score === undefined) {
-      score = partitionScore([...hand, card], dict, wordIndex);
-      cache.set(card.letters, score);
+      score = partitionScore([...hand, card], dict, wordIndex, cache);
+      mcCache.set(card.letters, score);
     }
     deckTotal += score;
   }
@@ -167,7 +184,7 @@ function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex, agent) {
  *                        number = opponent's known longest word letter-length
  * @returns {Card}
  */
-function chooseBestDiscard(hand, dict, wordIndex, agent = DEFAULT_AGENT, ctx = { roundNumber: 1, opponentLongestWord: null }) {
+function chooseBestDiscard(hand, dict, wordIndex, agent = DEFAULT_AGENT, ctx = { roundNumber: 1, opponentLongestWord: null }, cache) {
   // Apply weight only when committing final words (opponent already went out → this is
   // the hero's final turn; the partial partition IS what gets scored at round end).
   // On normal mid-round turns the partial partition is speculative, so weight = 0.
@@ -180,7 +197,7 @@ function chooseBestDiscard(hand, dict, wordIndex, agent = DEFAULT_AGENT, ctx = {
     if (seen.has(card.letters)) continue;
     seen.add(card.letters);
     const remaining = hand.filter(c => c.id !== card.id);
-    const partition = findPartialPartition(remaining, dict, wordIndex);
+    const partition = findPartialPartition(remaining, dict, wordIndex, cache);
     const pts = partition.words.flat().reduce((s, c) => s + c.points, 0);
 
     let bonus = 0;
@@ -221,8 +238,13 @@ function aiTakeTurn(state, dict, wordIndex, agent = DEFAULT_AGENT) {
   const hand = [...state[who].hand];
   const topDiscard = state.discard;
 
+  // Lazy-init persistent caches on the agent object (valid indefinitely — letter-based keys,
+  // static wordIndex; no card-ID references stored).
+  if (!agent._partialCache) agent._partialCache = new Map();
+  if (!agent._goOutCache)   agent._goOutCache   = new Map();
+
   // 1. Decide draw source
-  const drawDiscard = shouldDrawDiscard(hand, topDiscard, state.deck, dict, wordIndex, agent);
+  const drawDiscard = shouldDrawDiscard(hand, topDiscard, state.deck, dict, wordIndex, agent, agent._partialCache);
   let drewFrom;
   let drawnCard = null;
   if (drawDiscard && topDiscard) {
@@ -255,7 +277,7 @@ function aiTakeTurn(state, dict, wordIndex, agent = DEFAULT_AGENT) {
     if (goOutSeen.has(discardCandidate.letters)) continue;
     goOutSeen.add(discardCandidate.letters);
     const remaining = newHand.filter(c => c.id !== discardCandidate.id);
-    const full = findBestWordPartition(remaining, dict, wordIndex);
+    const full = findBestWordPartition(remaining, dict, wordIndex, agent._goOutCache);
     if (full) goOutOptions.push({ discardCandidate, full });
   }
   if (goOutOptions.length > 0) {
@@ -287,8 +309,8 @@ function aiTakeTurn(state, dict, wordIndex, agent = DEFAULT_AGENT) {
   }
 
   // 3. Cannot go out — choose discard that leaves the best remaining partition
-  const partial = findPartialPartition(newHand, dict, wordIndex);
-  const cardToDiscard = chooseBestDiscard(newHand, dict, wordIndex, agent, ctx);
+  const partial = findPartialPartition(newHand, dict, wordIndex, agent._partialCache);
+  const cardToDiscard = chooseBestDiscard(newHand, dict, wordIndex, agent, ctx, agent._partialCache);
   discardCard(state, cardToDiscard.id);
 
   return { drewFrom, drawnCard, discarded: cardToDiscard, wentOut: false, words: partial.words, isFinalTurn: false };
