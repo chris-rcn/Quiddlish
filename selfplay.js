@@ -61,7 +61,7 @@ function loadDictionary() {
 // Built once after dict loads; shared across all games
 let _wordIndex = null;
 
-const BASE_AGENT = { mcSims: 0, longestWordFeatureWeight: 0, longestWordSigma: 1.5 };
+const BASE_AGENT = { mcSims: 0, longestWordFeatureWeight: 0, longestWordSigma: 1.5, checkGoOutOnDraw: false };
 
 // ── Round runner ──────────────────────────────────────────────────────────────
 
