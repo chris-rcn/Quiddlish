@@ -39,8 +39,12 @@ function findBestWordPartition(hand, dict, wordIndex) {
   function backtrack(remaining, groups) {
     if (remaining.length === 0) return groups;
     for (let size = 3; size <= remaining.length; size++) {
+      const triedSubsetKeys = new Set();
       for (const subset of combinations(remaining, size)) {
-        const hits = wordIndex.get(cardSubsetKey(subset));
+        const key = cardSubsetKey(subset);
+        if (triedSubsetKeys.has(key)) continue;
+        triedSubsetKeys.add(key);
+        const hits = wordIndex.get(key);
         if (hits) {
           const arranged = arrangeCards(subset, hits[0].tokenOrder);
           if (arranged) {
@@ -79,8 +83,12 @@ function findPartialPartition(hand, dict, wordIndex) {
     if (remaining.length === 0) { updateBest(groups, []); return; }
     updateBest(groups, remaining);
     for (let size = 3; size <= remaining.length; size++) {
+      const triedSubsetKeys = new Set();
       for (const subset of combinations(remaining, size)) {
-        const hits = wordIndex.get(cardSubsetKey(subset));
+        const key = cardSubsetKey(subset);
+        if (triedSubsetKeys.has(key)) continue;
+        triedSubsetKeys.add(key);
+        const hits = wordIndex.get(key);
         if (hits) {
           const arranged = arrangeCards(subset, hits[0].tokenOrder);
           if (arranged) {
@@ -167,7 +175,10 @@ function chooseBestDiscard(hand, dict, wordIndex, agent = DEFAULT_AGENT, ctx = {
   let bestScore = -Infinity;
   let bestCard = hand[0];
 
+  const seen = new Set();
   for (const card of hand) {
+    if (seen.has(card.letters)) continue;
+    seen.add(card.letters);
     const remaining = hand.filter(c => c.id !== card.id);
     const partition = findPartialPartition(remaining, dict, wordIndex);
     const pts = partition.words.flat().reduce((s, c) => s + c.points, 0);
@@ -239,7 +250,10 @@ function aiTakeTurn(state, dict, wordIndex, agent = DEFAULT_AGENT) {
   //    that maximises word-card points, which means discarding the lowest-value card.
   const w = agent.longestWordFeatureWeight ?? 0;
   const goOutOptions = [];
+  const goOutSeen = new Set();
   for (const discardCandidate of newHand) {
+    if (goOutSeen.has(discardCandidate.letters)) continue;
+    goOutSeen.add(discardCandidate.letters);
     const remaining = newHand.filter(c => c.id !== discardCandidate.id);
     const full = findBestWordPartition(remaining, dict, wordIndex);
     if (full) goOutOptions.push({ discardCandidate, full });
