@@ -154,7 +154,10 @@ function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex, agent) {
  * @returns {Card}
  */
 function chooseBestDiscard(hand, dict, wordIndex, agent = DEFAULT_AGENT, ctx = { roundNumber: 1, opponentLongestWord: null }) {
-  const w = agent.longestWordFeatureWeight ?? 0;
+  // Apply weight only when committing final words (opponent already went out → this is
+  // the hero's final turn; the partial partition IS what gets scored at round end).
+  // On normal mid-round turns the partial partition is speculative, so weight = 0.
+  const w = ctx.opponentLongestWord !== null ? (agent.longestWordFeatureWeight ?? 0) : 0;
   let bestScore = -Infinity;
   let bestCard = hand[0];
 
