@@ -318,7 +318,7 @@ function aggregateStats(results, pairs) {
   // Per-round-number stats (round 1–8)
   const byRound = Array.from({ length: 8 }, () => ({
     ai1WentOut: 0, ai2WentOut: 0, neither: 0,
-    totalTurns: 0, ai1Score: 0, ai2Score: 0, games: 0,
+    totalTurns: 0, totalTurnMs: 0, ai1Score: 0, ai2Score: 0, games: 0,
     longestWordTotal: 0, longestWordGames: 0,
   }));
 
@@ -343,6 +343,7 @@ function aggregateStats(results, pairs) {
       const rb = byRound[r.round - 1];
       rb.games++;
       rb.totalTurns    += r.turns;
+      rb.totalTurnMs   += r.ai1TurnMs + r.ai2TurnMs;
       rb.ai1Score += r.ai1Score;
       rb.ai2Score += r.ai2Score;
       if      (r.wentOutFirst === 'ai1') rb.ai1WentOut++;
@@ -401,18 +402,19 @@ function printStats(stats, ai1Name, ai2Name) {
   const a1Pts = `${ai1Name}Pts`.padEnd(11);
   const a2Pts = `${ai2Name}Pts`.padEnd(9);
   console.log(`\n  Per-round breakdown`);
-  console.log(`  ${'Rnd'.padEnd(4)} ${'Cards'.padEnd(6)} ${'AvgTurns'.padEnd(9)} ${a1Out} ${a2Out} ${a1Pts} ${a2Pts} ${'AvgLong'}`);
+  console.log(`  ${'Rnd'.padEnd(4)} ${'Cards'.padEnd(6)} ${'AvgTurns'.padEnd(9)} ${'AvgTurnMs'.padEnd(10)} ${a1Out} ${a2Out} ${a1Pts} ${a2Pts} ${'AvgLong'}`);
   for (let i = 0; i < 8; i++) {
     const rb    = stats.byRound[i];
     const cards = i + 3; // round 1 = 3 cards
     if (rb.games === 0) continue;
-    const avgT  = (rb.totalTurns      / rb.games).toFixed(1);
+    const avgT  = (rb.totalTurns / rb.games).toFixed(1);
+    const avgMs = rb.totalTurns ? (rb.totalTurnMs / rb.totalTurns).toFixed(2) : '-';
     const pOut  = (rb.ai1WentOut / rb.games * 100).toFixed(1);
     const cOut  = (rb.ai2WentOut / rb.games * 100).toFixed(1);
     const avgP  = (rb.ai1Score   / rb.games).toFixed(1);
     const avgC  = (rb.ai2Score   / rb.games).toFixed(1);
     const avgL  = rb.longestWordGames ? (rb.longestWordTotal / rb.longestWordGames).toFixed(1) : '-';
-    console.log(`  ${String(i+1).padEnd(4)} ${String(cards).padEnd(6)} ${avgT.padEnd(9)} ${(pOut+'%').padEnd(9)} ${(cOut+'%').padEnd(9)} ${avgP.padEnd(11)} ${avgC.padEnd(9)} ${avgL}`);
+    console.log(`  ${String(i+1).padEnd(4)} ${String(cards).padEnd(6)} ${avgT.padEnd(9)} ${avgMs.padEnd(10)} ${(pOut+'%').padEnd(9)} ${(cOut+'%').padEnd(9)} ${avgP.padEnd(11)} ${avgC.padEnd(9)} ${avgL}`);
   }
   console.log('════════════════════════════════════════════════════════\n');
 }
