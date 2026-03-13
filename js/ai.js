@@ -123,10 +123,16 @@ function shouldDrawDiscard(hand, topDiscard, deck, dict, wordIndex, agent) {
   const sampleSize = Math.min(deck.length, agent.mcSims);
   if (sampleSize === 0) return discardScore > partitionScore(hand, dict, wordIndex);
 
+  const cache = new Map(); // card.letters → partitionScore (tiles are interchangeable by letters)
   let deckTotal = 0;
   for (let i = 0; i < sampleSize; i++) {
     const card = deck[Math.floor(Math.random() * deck.length)];
-    deckTotal += partitionScore([...hand, card], dict, wordIndex);
+    let score = cache.get(card.letters);
+    if (score === undefined) {
+      score = partitionScore([...hand, card], dict, wordIndex);
+      cache.set(card.letters, score);
+    }
+    deckTotal += score;
   }
   return discardScore > deckTotal / sampleSize;
 }
